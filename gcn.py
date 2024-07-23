@@ -45,7 +45,7 @@ class CaceOrb(L.LightningModule):
         gcn_dim = 468
         self.invr0 = nn.Parameter((1.0 / args["cutoff"]) * (torch.rand(1) + 0.5)) #edge weights
         self.gcn1 = geonn.GraphConv(in_channels=-1, out_channels=gcn_dim, aggr="add")
-        self.gcn2 = geonn.GraphConv(in_channels=468, out_channels=gcn_dim, aggr="add")
+        self.gcn2 = geonn.GraphConv(in_channels=gcn_dim, out_channels=gcn_dim, aggr="add")
         
         #MLP Readouts (by occupancy):
         netlst = [nn.LazyLinear(256),
