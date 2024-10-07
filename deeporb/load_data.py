@@ -29,7 +29,32 @@ def from_h5key(h5key,h5fn,cutoff=None):
                     continue
                 arrs += [np.array(data[f"{n}_{l}"])]
         orbdata = np.vstack(arrs).T
+        #Check this!!!!
+        #Tensor() appears to only have precision
         ad.orbdata = torch.Tensor(orbdata)
+        return ad
+
+def from_h5cart(h5key,h5fn,cutoff=None):
+    with h5py.File(h5fn, "r") as f:
+        data = f[h5key][()]
+
+        #Make atoms object:
+        pos = data[:,1:4]
+        els = data[:,0]
+        atoms = ase.Atoms(numbers=els,positions=pos)
+        ad = AtomicData.from_atoms(atoms,cutoff=cutoff)
+        ad.occ = torch.Tensor(data[:,-2]).int()
+        ad.energy = torch.Tensor([data[:,-1][0]])
+
+        idx = torch.Tensor([0,12,13,14,48,49,50,51,52,53]).int()
+        # def reorder(f):
+        #     f = torch.stack([f[idx + i] for i in range(12)])
+        #     return f
+
+        #Make orbdata
+        arr = torch.Tensor(data[:,4:-2])
+        arr = torch.stack([torch.stack([f[idx + i] for i in range(12)]) for f in arr])
+        ad.orbdata = arr
         return ad
 
 def from_h5key_old(h5key,h5fn,cutoff=None):

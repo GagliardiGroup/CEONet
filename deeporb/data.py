@@ -1,14 +1,15 @@
 from cace.cace.tools.torch_geometric import Dataset, DataLoader #their loader to import dicts
-from .load_data import from_h5key
+from .load_data import from_h5key, from_h5cart
 import lightning as L
 import torch
 import h5py
 import os
 
 class OrbDataset(Dataset):
-    def __init__(self,root="data/aodata.h5",cutoff=4.0,
+    def __init__(self,root="data/aodata.h5",cutoff=4.0,cart=False,
                 transform=None, pre_transform=None, pre_filter=None):
         self.cutoff = cutoff
+        self.cart = cart
         super().__init__(root, transform, pre_transform, pre_filter)
 
     def len(self):
@@ -16,21 +17,25 @@ class OrbDataset(Dataset):
             return len(f.keys())
     
     def get(self, idx):
-        return from_h5key(f"o{idx}",h5fn=self.root,cutoff=self.cutoff)
+        if self.cart:
+            return from_h5cart(f"o{idx}",h5fn=self.root,cutoff=self.cutoff)
+        else:
+            return from_h5key(f"o{idx}",h5fn=self.root,cutoff=self.cutoff)
 
 class OrbData(L.LightningDataModule):
-    def __init__(self, num=None, root="data/aodata.h5", cutoff=4.0,
+    def __init__(self, num=None, root="data/aodata.h5", cutoff=4.0, cart=False,
                  batch_size=32, valid_p=0.2):
         super().__init__()
         self.batch_size = batch_size
         self.root = root
         self.valid_p = valid_p
         self.num = num
+        self.cart = cart
         self.cutoff = cutoff
         self.prepare_data()
     
     def prepare_data(self):
-        dataset = OrbDataset(self.root,cutoff=self.cutoff)
+        dataset = OrbDataset(self.root,cutoff=self.cutoff,cart=self.cart)
         if self.num is not None:
             dataset = dataset[:self.num]
         torch.manual_seed(12345)
