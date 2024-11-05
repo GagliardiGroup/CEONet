@@ -43,7 +43,6 @@ class CaceA(nn.Module):
         else:
             self.node_embedding_receiver = self.node_embedding_sender
         self.edge_coding = EdgeEncoder(directed=True)
-        self.n_edge_channels = n_atom_basis**2
 
         from cace.cace.modules import BesselRBF, GaussianRBF, GaussianRBFCentered
         from cace.cace.modules import PolynomialCutoff
@@ -54,14 +53,6 @@ class CaceA(nn.Module):
         
         self.cutoff_fn = cutoff_fn
         self.angular_basis = AngularComponent(self.max_l)
-        # print("Angular list:",self.angular_basis.lxlylz_list)
-        radial_transform = SharedRadialLinearTransform(
-                                max_l=self.max_l,
-                                radial_dim=self.n_rbf,
-                                radial_embedding_dim=self.n_radial_basis,
-                                channel_dim=self.n_edge_channels
-                                )
-        self.radial_transform = radial_transform
 
     def forward(self, data: Dict[str, torch.Tensor]):
         node_feats_list = []
@@ -106,7 +97,7 @@ class CaceA(nn.Module):
         # mix the different radial components
         #N x r x l x e^2 --> l x N x r x e^2
         #s x y z x2 xy xz y2 yz z2
-        a_basis = self.radial_transform(node_feat_A).movedim(2,0)
+        a_basis = node_feat_A.movedim(2,0)
         a_basis = a_basis.reshape(a_basis.shape[0],a_basis.shape[1],-1) #l x N x (r x e^2)
         adct = torch.jit.annotate(Dict[int, torch.Tensor], {})
         adct[0] = a_basis[0]
