@@ -1,6 +1,8 @@
 import torch
 from typing import Optional, Dict, List, Callable, Tuple, Union
 
+#Most of this is taken from HotPP https://doi.org/10.1038/s41467-024-51886-6
+
 def expand_to(t     : torch.Tensor,
               n_dim : int,
               dim   : int=-1) -> torch.Tensor:
@@ -120,6 +122,9 @@ def layer_norm(input_tensors : Dict[int, torch.Tensor],eps:float=1e-10) -> Dict[
             factor = (1/rms)
             output_tensors[l] = expand_to(factor,l+2) * input_tensors[l]
         return output_tensors
+
+#The below is taken from TensorNet
+#https://proceedings.neurips.cc/paper_files/paper/2023/hash/75c2ec5f98d7b2f50ad68033d2c07086-Abstract-Conference.html
     
 @torch.jit.script
 def decompose_tensor(tensor : torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor,torch.Tensor]:
