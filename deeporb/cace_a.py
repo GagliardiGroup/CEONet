@@ -10,6 +10,7 @@ from cace.cace.modules import AngularComponent, SharedRadialLinearTransform
 from cace.cace.tools import torch_geometric
 from cace.cace.tools import elementwise_multiply_3tensors, scatter_sum
 
+#reverted
 class CaceA(nn.Module):
     def __init__(
         self,
