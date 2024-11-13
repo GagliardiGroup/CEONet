@@ -93,7 +93,7 @@ class OrbInMemoryDataset(Dataset):
 
 class OrbData(L.LightningDataModule):
     def __init__(self, root="data/aodata.h5", cutoff=4.0, in_memory=False, inmem_parallel=False,
-                 batch_size=32, valid_p=0.1, avge0=0, sigma=1):
+                 batch_size=32, num_train=None, valid_p=0.1, avge0=0, sigma=1):
         super().__init__()
         self.batch_size = batch_size
         self.root = root
@@ -102,6 +102,7 @@ class OrbData(L.LightningDataModule):
         self.avge0 = avge0
         self.sigma = sigma
         self.in_memory = in_memory
+        self.num_train = num_train
         self.inmem_parallel = inmem_parallel
         try:
             self.num_cpus = int(os.environ['SLURM_JOB_CPUS_PER_NODE'])
@@ -119,15 +120,19 @@ class OrbData(L.LightningDataModule):
         torch.manual_seed(12345)
         dataset = dataset.shuffle()
         data_cutoff = int(len(dataset)*(1-self.valid_p))
-        self.train = dataset[:data_cutoff]
+        if self.num_train:
+            assert(self.num_train < data_cutoff)
+            self.train = dataset[:self.num_train]
+        else:
+            self.train = dataset[:data_cutoff]
         self.val = dataset[data_cutoff:]
 
     def train_dataloader(self):
-        train_loader = DataLoader(self.train, batch_size=self.batch_size,
+        train_loader = DataLoader(self.train, batch_size=self.batch_size, drop_last=True,
                                   shuffle=True, num_workers = self.num_cpus)
         return train_loader
 
     def val_dataloader(self):
-        val_loader = DataLoader(self.val, batch_size=self.batch_size, 
+        val_loader = DataLoader(self.val, batch_size=self.batch_size, drop_last=True,
                                 shuffle=False, num_workers = self.num_cpus)
         return val_loader

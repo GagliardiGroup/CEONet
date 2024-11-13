@@ -15,7 +15,7 @@ fn = "../data/aocart_virt.h5"
 MOLDEN_DIR = "../../data/qm9_moldens" #dir where the moldens are
 names = glob.glob(f"{MOLDEN_DIR}/*.molden")
 onum = 0
-for name in tqdm(names[:5000]):
+for name in tqdm(names[:25000]):
     obj = OrbExtract(name,rotate=False)
     mo_idx = np.where((obj.mo_ene > -8)*(obj.mo_occ == 0))[0]
     for i in mo_idx:
