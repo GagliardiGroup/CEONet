@@ -112,7 +112,7 @@ if on_cluster:
 max_steps = 300000
 b_size = min(len(data.train),batch_size)
 steps_per_epoch = len(data.train)/b_size
-check_val_every_n_epoch = int(20/steps_per_epoch)
+check_val_every_n_epoch = max(int(1000/steps_per_epoch),1)
 task = LightningTrainingTask(model,losses=losses,metrics=metrics,log_rmse=False,
                              scheduler_args={'mode': 'min', 'factor': 0.8, 'patience': 10},
                              optimizer_args={'lr': 0.001},
