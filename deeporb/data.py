@@ -31,15 +31,12 @@ def from_h5key(h5key,h5fn,cutoff=None,avge0=0,sigma=1):
                 ad[f"orbdata_{l}_ptr"] = torch.tensor([ad[f"orbints_{l}"].shape[0]]).int()
                 ad[f"orbfloats_{l}"] = torch.from_numpy(np.array(data[f"orbfloats_{l}"]))
 
-        #Make gradient -- might do fock later?
-        # f = torch.from_numpy(np.array(data["fock"]))
-        # ad["g"] = torch.from_numpy(np.array(data["g"]))
-        
         #Labels
         # occ = np.ones_like(els) * np.array(data["occ"])
         # ad.occ_atom = torch.from_numpy(occ)
         ad.energy = torch.Tensor(np.array(data["energy"]))
         ad.energy_ssh = 1/sigma * (ad.energy - avge0)
+        ad.charge = torch.from_numpy(np.ones_like(els) * np.array(data["charge"])).int()
         
         return ad
 
@@ -92,7 +89,7 @@ class OrbInMemoryDataset(Dataset):
         return self.dataset[idx]
 
 class OrbData(L.LightningDataModule):
-    def __init__(self, root="data/aodata.h5", cutoff=4.0, in_memory=False, inmem_parallel=False,
+    def __init__(self, root="data/aodata.h5", cutoff=4.0, in_memory=False, inmem_parallel=False, drop_last=True,
                  batch_size=32, num_train=None, valid_p=0.1, avge0=0, sigma=1):
         super().__init__()
         self.batch_size = batch_size
@@ -103,6 +100,7 @@ class OrbData(L.LightningDataModule):
         self.sigma = sigma
         self.in_memory = in_memory
         self.num_train = num_train
+        self.drop_last = drop_last
         self.inmem_parallel = inmem_parallel
         try:
             self.num_cpus = int(os.environ['SLURM_JOB_CPUS_PER_NODE'])
@@ -128,11 +126,11 @@ class OrbData(L.LightningDataModule):
         self.val = dataset[data_cutoff:]
 
     def train_dataloader(self):
-        train_loader = DataLoader(self.train, batch_size=self.batch_size, drop_last=True,
+        train_loader = DataLoader(self.train, batch_size=self.batch_size, drop_last=self.drop_last,
                                   shuffle=True, num_workers = self.num_cpus)
         return train_loader
 
     def val_dataloader(self):
-        val_loader = DataLoader(self.val, batch_size=self.batch_size, drop_last=True,
+        val_loader = DataLoader(self.val, batch_size=self.batch_size, drop_last=self.drop_last,
                                 shuffle=False, num_workers = self.num_cpus)
         return val_loader
