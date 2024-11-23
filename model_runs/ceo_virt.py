@@ -6,14 +6,14 @@ from cace.tasks import LightningTrainingTask
 from deeporb.data import OrbDataset, OrbData
 from deeporb.ceonet import CEONet
 
-#This is for running on the berkeley cluster
-
-#Important argument : in_memory
-#If True will load all data into memory at startup time, takes ~15 min of startup time with 5/130 of the training data
-#But then training is much faster
-logs_name = "ceonet_occ"
+#Doing the thing
+logs_name = "ceo_virt"
 cutoff = 4.0
-orb_type = "occ"
+orb_type = "virt"
+linmax = 1
+batch_size = 128
+layers = 4
+charge_embedding = False
 
 on_cluster = False
 import os
@@ -37,14 +37,14 @@ if not in_memory:
     torch.multiprocessing.set_sharing_strategy('file_system')
 print("Making dataset...")
 time_start = time.perf_counter()
-data = OrbData(root=root,batch_size=128,cutoff=cutoff,in_memory=in_memory,avge0=avge0,sigma=sigma)
+data = OrbData(root=root,batch_size=batch_size,cutoff=cutoff,in_memory=in_memory,avge0=avge0,sigma=sigma)
 time_stop = time.perf_counter()
 print("Time elapsed:",time_stop-time_start)
 
-representation = CEONet(64,cutoff=cutoff,n_rbf=8,n_rsamples=8,lomax=2,layers=4)
+representation = CEONet(64,cutoff=cutoff,n_rbf=8,n_rsamples=8,linmax=linmax,lomax=2,layers=layers,charge_embedding=charge_embedding)
 
 from cace.models import NeuralNetworkPotential
-from deeporb.atomwise import Atomwise, AttentionAtomwise
+from deeporb.atomwise import AttentionAtomwise
 atomwise = AttentionAtomwise(
                     output_key='pred_energy',
                     n_hidden=[32,16],
@@ -83,7 +83,8 @@ metrics = [e_metric]
 for batch in data.train_dataloader():
     exdatabatch = batch
     break
-model(exdatabatch)
+model.cuda()
+model(exdatabatch.cuda())
 
 #Check for checkpoint and restart if found:
 chkpt = None
@@ -106,8 +107,9 @@ if on_cluster:
     torch.set_float32_matmul_precision('medium')
     progress_bar = False
 
-task = LightningTrainingTask(model,losses=losses,metrics=metrics,log_rmse=False,
+task = LightningTrainingTask(model,losses=losses,metrics=metrics,metric_typ="mae",
+                             logs_directory="lightning_logs",name=logs_name,
                              scheduler_args={'mode': 'min', 'factor': 0.8, 'patience': 10},
                              optimizer_args={'lr': 0.001},
                             )
-task.fit(data,dev_run=dev_run,max_epochs=500,chkpt=chkpt,name=logs_name,progress_bar=progress_bar)
+task.fit(data,dev_run=dev_run,max_epochs=500,chkpt=chkpt,progress_bar=progress_bar)

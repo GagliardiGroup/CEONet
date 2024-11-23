@@ -4,11 +4,11 @@ import torch.nn.functional as F
 from typing import Dict, Union, Sequence, Callable, Optional, Tuple, List
 
 import itertools
-from cace.cace.modules import Dense, ResidualBlock, build_mlp
-from cace.cace.modules import NodeEncoder, NodeEmbedding, EdgeEncoder
-from cace.cace.modules import AngularComponent, SharedRadialLinearTransform
-from cace.cace.tools import torch_geometric
-from cace.cace.tools import elementwise_multiply_3tensors, scatter_sum
+from cace.modules import Dense, ResidualBlock, build_mlp
+from cace.modules import NodeEncoder, NodeEmbedding, EdgeEncoder
+from cace.modules import AngularComponent, SharedRadialLinearTransform
+from cace.tools import torch_geometric
+from cace.tools import elementwise_multiply_3tensors, scatter_sum
 
 class CaceA(nn.Module):
     def __init__(
@@ -45,8 +45,8 @@ class CaceA(nn.Module):
         self.edge_coding = EdgeEncoder(directed=True)
         self.n_edge_channels = n_atom_basis**2
 
-        from cace.cace.modules import BesselRBF, GaussianRBF, GaussianRBFCentered
-        from cace.cace.modules import PolynomialCutoff
+        from cace.modules import BesselRBF, GaussianRBF, GaussianRBFCentered
+        from cace.modules import PolynomialCutoff
         # radial_basis = BesselRBF(cutoff=cutoff, n_rbf=n_rbf, trainable=True)
         radial_basis = GaussianRBFCentered(n_rbf=n_rbf, cutoff=cutoff, trainable=True)
         cutoff_fn = PolynomialCutoff(cutoff=cutoff, p=5)

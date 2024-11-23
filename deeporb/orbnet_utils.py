@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import lightning as L
-from cace.cace.modules import NodeEncoder, NodeEmbedding
-from cace.cace.tools import torch_geometric
+from cace.modules import NodeEncoder, NodeEmbedding
+from cace.tools import torch_geometric
 from typing import Optional, Dict, List, Callable, Tuple, Union
 from deeporb.tensornet_utils import _aggregate_new, expand_to, find_distances, find_moment, _scatter_add, single_tensor_product
 

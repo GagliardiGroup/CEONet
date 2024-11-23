@@ -2,16 +2,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import lightning as L
-from cace.cace.modules import NodeEncoder, NodeEmbedding
-from cace.cace.tools import torch_geometric
+from cace.modules import NodeEncoder, NodeEmbedding
+from cace.tools import torch_geometric
 from typing import Optional, Dict, List, Callable, Tuple, Union
 
 from deeporb.cace_a import CaceA
 from deeporb.tensornet import TensorProductLayer, TensorLinearMixing, TensorFeedForward
 from deeporb.tensornet_utils import expand_to, find_distances, find_moment, _scatter_add
 from deeporb.tensornet_utils import irrep_tensors, normalize_tensors, single_tensor_product
-from deeporb.orbnet_utils import fix_orbints, calc_norm
+from deeporb.orbnet_utils import fix_orbints, calc_norm, reshape_ls
 
+#New model that can handle d orbitals & charged systems
 class MessagePassingLayer(nn.Module):
     def __init__(self,
                  nc    : int,
@@ -235,11 +236,12 @@ class CEONet(L.LightningModule):
                  lomax : int=2,
                  linmax : int=1,
                  cutoff : float=4.0,
-                 zs : List[int]=[1,6,7,8,9],
                  stacking : bool=False,
                  irrep_mixing : bool=False,
+                 charge_embedding : bool=False,
                  ) -> None:
         super().__init__()
+        zs = list(range(1,54))
         self.zs = zs
         self.nc = nc
         self.lomax = lomax
@@ -247,6 +249,7 @@ class CEONet(L.LightningModule):
         self.layers = layers
         self.irrep_mixing = irrep_mixing
         self.norm_func = normalize_tensors
+        self.charge_embedding = charge_embedding
         
         #Orbital input radial functions
         rsamples = [nn.Parameter(torch.linspace(0,cutoff,n_rsamples)) for l in range(self.linmax+1)]
@@ -257,8 +260,8 @@ class CEONet(L.LightningModule):
         ])
 
         #Radial functions
-        from cace.cace.modules import BesselRBF, GaussianRBF, GaussianRBFCentered
-        from cace.cace.modules import PolynomialCutoff
+        from cace.modules import BesselRBF, GaussianRBF, GaussianRBFCentered
+        from cace.modules import PolynomialCutoff
         self.radial = GaussianRBFCentered(n_rbf=n_rbf, cutoff=cutoff, start=1.0, trainable=True)
         self.cutoff_fn = PolynomialCutoff(cutoff)
         self.orbital_mp = MessagePassingLayer(nc=nc,n_rbf=n_rbf,lomax=self.lomax,linmax=self.linmax,
@@ -304,6 +307,14 @@ class CEONet(L.LightningModule):
         self.b_size = nc*num_b*(layers + 1)
         self.b_norm = nn.LayerNorm([self.b_size],bias=True)
 
+        #Append charges at end
+        charges = list(range(-10,11))
+        if self.charge_embedding:
+            self.charge_embedding_layer = nn.Sequential(
+                NodeEncoder(charges),
+                NodeEmbedding(node_dim=len(charges), embedding_dim=nc, random_seed=34)
+            )
+
     def calc_rbf(self, data : Dict[int, torch.Tensor]) -> Dict[int, torch.Tensor]:
         _, dij, _ = find_distances(data)
         data["rbf_ij"] = self.radial(dij[:,None]) * self.cutoff_fn(dij[:,None])
@@ -329,17 +340,22 @@ class CEONet(L.LightningModule):
     
             #Sample primitive orbitals
             norm = calc_norm(alpha,l)
-            arg = alpha[:,None] * (-(self.rsamples[l]**2)[None,:])
-            prim = norm[:,None] * torch.exp(arg) # NP x rsamples
-            prim_mixed = self.rsample_mixing_list[l](prim) #NP x C
+            arg = alpha[:,None] * (-(self.rsamples[l]**2)[None,:]) #NP x rsamples
+            prim = norm[:,None,:] * torch.exp(arg)[:,:,None] # NP x rsamples x dim
+            prim = prim.movedim(1,-1)
+            prim = self.rsample_mixing_list[l](prim) 
+            prim = prim.movedim(-1,1) #NP x C x dim
     
             #Multiply by coeffs and sum
-            orb = weight[:,None] * prim_mixed #NP x C
-            out = orb[:,:,None] * c[:,None,:] #(NP x C) (NP x dim) --> (NP x C x dim)
+            orb = expand_to(weight,3,dim=-1) * prim #NP x C x dim
+            out = orb * c[:,None,:] # NP x C x dim
             summed_out = torch.zeros(natom,out.shape[1],out.shape[2],device=out.device)
             summed_out = torch.index_add(summed_out,0,atm_num,out)
+            
+            #Reshape
+            if l >= 2:
+                summed_out = reshape_ls(summed_out,l)        
             h0[l] = summed_out.squeeze()
-
         return h0
 
     def make_b(self,dct):
@@ -390,6 +406,11 @@ class CEONet(L.LightningModule):
         #Normalize b
         bfeats = torch.hstack(bfeats)
         bfeats = self.b_norm(bfeats)
+
+        #Append charge embedding
+        if self.charge_embedding:
+            ce = self.charge_embedding_layer(data["charge"])
+            bfeats = torch.hstack([bfeats,ce])
 
         data["node_feats"] = bfeats
         data["node_feats_A"] = mixed

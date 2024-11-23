@@ -6,8 +6,8 @@ import h5py
 import lightning as L
 
 #loader to import dicts:
-from cace.cace.data.atomic_data import AtomicData
-from cace.cace.tools.torch_geometric import Dataset, DataLoader
+from cace.data.atomic_data import AtomicData
+from cace.tools.torch_geometric import Dataset, DataLoader
 
 def from_h5key(h5key,h5fn,cutoff=None,avge0=0,sigma=1):
     with h5py.File(h5fn, "r") as f:
@@ -35,7 +35,8 @@ def from_h5key(h5key,h5fn,cutoff=None,avge0=0,sigma=1):
         # ad.occ_atom = torch.from_numpy(occ)
         ad.energy = torch.Tensor(np.array(data["energy"]))
         ad.energy_ssh = 1/sigma * (ad.energy - avge0)
-        ad.charge = torch.from_numpy(np.ones_like(els) * np.array(data["charge"])).int()
+        if "charge" in data.keys():
+            ad.charge = torch.from_numpy(np.ones_like(els) * np.array(data["charge"])).int()
         
         return ad
 
@@ -89,11 +90,12 @@ class OrbInMemoryDataset(Dataset):
 
 class OrbData(L.LightningDataModule):
     def __init__(self, root="data/aodata.h5", cutoff=4.0, in_memory=False, inmem_parallel=False, drop_last=True,
-                 batch_size=32, num_train=None, valid_p=0.1, avge0=0, sigma=1):
+                 batch_size=32, num_train=None, valid_p=0.1, test_p=0.1, avge0=0, sigma=1):
         super().__init__()
         self.batch_size = batch_size
         self.root = root
         self.valid_p = valid_p
+        self.test_p = test_p
         self.cutoff = cutoff
         self.avge0 = avge0
         self.sigma = sigma
@@ -116,20 +118,23 @@ class OrbData(L.LightningDataModule):
                                          sigma=self.sigma,inmem_parallel=self.inmem_parallel)
         torch.manual_seed(12345)
         dataset = dataset.shuffle()
-        data_cutoff = int(len(dataset)*(1-self.valid_p))
-        if self.num_train:
-            assert(self.num_train < data_cutoff)
-            self.train = dataset[:self.num_train]
-        else:
-            self.train = dataset[:data_cutoff]
-        self.val = dataset[data_cutoff:]
-
+        cut1 = int(len(dataset)*(1-self.valid_p-self.test_p))
+        cut2 = int(len(dataset)*(1-self.test_p))
+        self.train = dataset[:cut1]
+        self.val = dataset[cut1:cut2]
+        self.test = dataset[cut2:]
+        
     def train_dataloader(self):
         train_loader = DataLoader(self.train, batch_size=self.batch_size, drop_last=self.drop_last,
                                   shuffle=True, num_workers = self.num_cpus)
         return train_loader
 
     def val_dataloader(self):
-        val_loader = DataLoader(self.val, batch_size=self.batch_size, drop_last=self.drop_last,
+        val_loader = DataLoader(self.val, batch_size=self.batch_size, drop_last=False,
                                 shuffle=False, num_workers = self.num_cpus)
         return val_loader
+
+    def test_dataloader(self):
+        test_loader = DataLoader(self.test, batch_size=self.batch_size, drop_last=False,
+                                shuffle=False, num_workers = self.num_cpus)
+        return test_loader

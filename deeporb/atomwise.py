@@ -3,7 +3,7 @@ from typing import Dict, Union, Sequence, Callable, Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from cace.cace.tools import scatter_sum
+from cace.tools import scatter_sum
 
 def build_mlp(layers,bias=False):
     mlp = []
