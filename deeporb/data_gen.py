@@ -45,8 +45,11 @@ def extract_modct(mol,mos):
     return all_dct
 
 class OrbExtract():
-    def __init__(self, fn, rotate=False, cart=True):
-        mol, mo_ene, mo_coeff, mo_occ, _, _ = molden.load(fn)
+    def __init__(self, fn=None, rotate=False, cart=True,
+                 mol=None, mo_ene=None, mo_coeff=None, mo_occ=None,
+                ):
+        if mol is None: #else fn is none
+            mol, mo_ene, mo_coeff, mo_occ, _, _ = molden.load(fn)
 
         #Project onto cartesian for l > 1
         if cart:
@@ -61,7 +64,7 @@ class OrbExtract():
         self.xyz = np.vstack([atm[1] for atm in mol._atom])
         self.mo_ene = mo_ene
         self.mo_occ = mo_occ
-        self.name = fn.split("/")[-1].split(".")[0]
+        # self.name = fn.split("/")[-1].split(".")[0]
         self.nmos = mo_coeff.shape[1]
         self.rotate = rotate
         self.dct = extract_modct(mol,mo_coeff)

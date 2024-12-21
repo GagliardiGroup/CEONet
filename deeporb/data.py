@@ -90,7 +90,7 @@ class OrbInMemoryDataset(Dataset):
 
 class OrbData(L.LightningDataModule):
     def __init__(self, root="data/aodata.h5", cutoff=4.0, in_memory=False, inmem_parallel=False, drop_last=True,
-                 batch_size=32, num_train=None, valid_p=0.1, test_p=0.1, avge0=0, sigma=1):
+                 batch_size=32, num_train=None, num_val=None, valid_p=0.1, test_p=0.1, avge0=0, sigma=1):
         super().__init__()
         self.batch_size = batch_size
         self.root = root
@@ -101,6 +101,7 @@ class OrbData(L.LightningDataModule):
         self.sigma = sigma
         self.in_memory = in_memory
         self.num_train = num_train
+        self.num_val = num_val
         self.drop_last = drop_last
         self.inmem_parallel = inmem_parallel
         try:
@@ -121,7 +122,14 @@ class OrbData(L.LightningDataModule):
         cut1 = int(len(dataset)*(1-self.valid_p-self.test_p))
         cut2 = int(len(dataset)*(1-self.test_p))
         self.train = dataset[:cut1]
+        if self.num_train:
+            self.train = self.train[:self.num_train]
+            assert(self.num_train == len(self.train))
         self.val = dataset[cut1:cut2]
+        if self.num_val:
+            self.val = self.val[:self.num_val]
+            # print(len(self.val))
+            assert(self.num_val == len(self.val))
         self.test = dataset[cut2:]
         
     def train_dataloader(self):
