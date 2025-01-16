@@ -1,23 +1,27 @@
+import os
 import numpy as np
 from deeporb.data_gen import OrbExtract
 from tqdm import tqdm
 import glob
 import h5py
 
-#Make sure to remove the moldens in the failed_sanity_check.pkl!
+#Set NUM_MOLECULES to None to generate all data
+#Note we filter for chargeless and spinless in the glob
 
-#Rough means and standard deviations (mean,std)
-#virt --> 0.6872, 0.1880
-#occ --> -0.6637, 0.2863
+NUM_MOLECULES = 1
+MOLDEN_DIR = "../../data/tmqm_moldens"
+names = glob.glob(f"{MOLDEN_DIR}/*_q0_s0_*.molden")
+if not NUM_MOLECULES:
+    NUM_MOLECULES = len(names)
+    
+fn = f"../data/tm_{NUM_MOLECULES}_virt.h5"
+if os.path.isfile(fn):
+    os.system(f"rm {fn}")
 
-#Make valence occupied
-fn = "../data/aocart_occ.h5"
-MOLDEN_DIR = "../../data/qm9_moldens" #dir where the moldens are
-names = glob.glob(f"{MOLDEN_DIR}/*.molden")
 onum = 0
-for name in tqdm(names[:25000]): #change here to make more or less
+for name in tqdm(names[:NUM_MOLECULES]):
     obj = OrbExtract(name,rotate=False)
-    mo_idx = np.where((obj.mo_ene > -8)*(obj.mo_occ == 2))[0]
+    mo_idx = np.where(obj.mo_occ == 0)[0]
     for i in mo_idx:
         with h5py.File(fn, "a") as f:
             for k,v in obj.extract_nlm(i,rotate=False).items():

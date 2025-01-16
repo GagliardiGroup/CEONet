@@ -235,7 +235,7 @@ class CEONet(L.LightningModule):
                  n_rsamples : int=8,
                  lomax : int=2,
                  linmax : int=1,
-                 cutoff : float=4.0,
+                 cutoff : float=7.6,
                  stacking : bool=False,
                  irrep_mixing : bool=False,
                  charge_embedding : bool=False,

@@ -58,7 +58,7 @@ class OrbExtract():
             mo_coeff = scf.addons.project_mo_nr2nr(mol,mo_coeff,mol2)
             mol = mol2
 
-        #Assign values
+        #Assign values in Bohr
         self.mol = mol
         self.els = mol._atm[:,0]
         self.xyz = np.vstack([atm[1] for atm in mol._atom])

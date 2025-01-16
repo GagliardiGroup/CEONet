@@ -41,7 +41,7 @@ def from_h5key(h5key,h5fn,cutoff=None,avge0=0,sigma=1):
         return ad
 
 class OrbDataset(Dataset):
-    def __init__(self,root="data/aodata.h5",cutoff=4.0, avge0=0, sigma=1,
+    def __init__(self,root="data/aodata.h5",cutoff=7.6, avge0=0, sigma=1,
                 transform=None, pre_transform=None, pre_filter=None):
         super().__init__(root, transform, pre_transform, pre_filter)
         self.root = root
@@ -57,7 +57,7 @@ class OrbDataset(Dataset):
         return from_h5key(f"o{idx}",h5fn=self.root,cutoff=self.cutoff,avge0=self.avge0,sigma=self.sigma)
 
 class OrbInMemoryDataset(Dataset):
-    def __init__(self,root="data/aocart.h5",cutoff=4.0, inmem_parallel=False,
+    def __init__(self,root="data/aocart.h5",cutoff=7.6, inmem_parallel=False,
                 transform=None, pre_transform=None, pre_filter=None, avge0=0, sigma=1):
         super().__init__(root, transform, pre_transform, pre_filter)
         self.root = root
@@ -128,7 +128,6 @@ class OrbData(L.LightningDataModule):
         self.val = dataset[cut1:cut2]
         if self.num_val:
             self.val = self.val[:self.num_val]
-            # print(len(self.val))
             assert(self.num_val == len(self.val))
         self.test = dataset[cut2:]
         

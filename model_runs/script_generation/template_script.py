@@ -6,50 +6,67 @@ from cace.tasks import LightningTrainingTask
 from deeporb.data import OrbDataset, OrbData
 from deeporb.ceonet import CEONet
 
-#This is for running on the berkeley cluster
+#Write here
+LOGS_NAME = "sto3g_occ_51200"
+DATA_NAME = "sto3g_5000_occ.h5"
 
-#Important argument : in_memory
-#If True will load all data into memory at startup time, takes ~15 min of startup time with 5/130 of the training data
-#But then training is much faster
-logs_name = "ceonet_occ"
-cutoff = 4.0
-orb_type = "occ"
+#Model params
+CUTOFF = 7.6
+LINMAX = 1
+LOMAX = 2
+NC = 64
+LAYERS = 2
+N_RBF = 16
+N_RSAMPLES = 16
+STACKING = True
+IRREP_MIXING = False
+CHARGE_EMBEDDING = False
 
+#Data params
+BATCH_SIZE = 128
+NUM_TRAIN = 5120
+NUM_VAL = 10000
+IN_MEMORY = True
+AVGE0 = 0
+SIGMA = 1
+
+#Training params
+#Set DEV_RUN to true to test if a single val batch works, etc.
+DEV_RUN = False
+LR = 0.001
+MAX_STEPS = 300000
+
+#Note: you will need to adjust this section to path it to the correct .h5
 on_cluster = False
 import os
 if 'SLURM_JOB_CPUS_PER_NODE' in os.environ.keys():
     on_cluster = True
 if on_cluster:
-    root = f"/global/scratch/users/king1305/data/aocart_{orb_type}.h5"
+    root = f"/global/scratch/users/king1305/data/{DATA_NAME}"
 else:
-    root = f"../data/aocart_{orb_type}.h5"
-if orb_type == "occ":
-    #For occ = 2 orbitals
-    avge0 = -0.6637
-    sigma = 0.2863
-elif orb_type == "virt":
-    #For occ = 0 orbitals
-    avge0 = 0.6872
-    sigma = 0.1880
+    root = f"../data/{DATA_NAME}"
 
 in_memory = True if on_cluster else False
+if on_cluster:
+    in_memory = IN_MEMORY
 if not in_memory:
     torch.multiprocessing.set_sharing_strategy('file_system')
 print("Making dataset...")
 time_start = time.perf_counter()
-data = OrbData(root=root,batch_size=128,cutoff=cutoff,in_memory=in_memory,avge0=avge0,sigma=sigma)
+data = OrbData(root=root,batch_size=BATCH_SIZE,num_val=NUM_VAL,num_train=NUM_TRAIN,cutoff=CUTOFF,in_memory=in_memory,avge0=AVGE0,sigma=SIGMA)
 time_stop = time.perf_counter()
 print("Time elapsed:",time_stop-time_start)
 
-representation = CEONet(64,cutoff=cutoff,n_rbf=8,n_rsamples=8,lomax=2,layers=4)
+representation = CEONet(NC,cutoff=CUTOFF,n_rbf=N_RBF,n_rsamples=N_RSAMPLES,stacking=STACKING,irrep_mixing=IRREP_MIXING,
+                        linmax=LINMAX,lomax=LOMAX,layers=LAYERS,charge_embedding=CHARGE_EMBEDDING)
 
 from cace.models import NeuralNetworkPotential
-from deeporb.atomwise import Atomwise, AttentionAtomwise
+from deeporb.atomwise import AttentionAtomwise
 atomwise = AttentionAtomwise(
                     output_key='pred_energy',
                     n_hidden=[32,16],
                     attention_hidden_nc=128,
-                    avge0=avge0,sigma=sigma,
+                    avge0=AVGE0,sigma=SIGMA,
                     bias=True
                    )
 
@@ -74,7 +91,7 @@ e_metric = Metrics(
             predict_name='pred_energy',
             name='e',
             metric_keys=["mae"],
-            avge0=avge0,sigma=sigma,
+            avge0=AVGE0,sigma=SIGMA,
             per_atom=False,
         )
 metrics = [e_metric]
@@ -83,16 +100,17 @@ metrics = [e_metric]
 for batch in data.train_dataloader():
     exdatabatch = batch
     break
-model(exdatabatch)
+model.cuda()
+model(exdatabatch.cuda())
 
 #Check for checkpoint and restart if found:
 chkpt = None
-dev_run = False
-if os.path.isdir(f"lightning_logs/{logs_name}"):
+dev_run = DEV_RUN
+if os.path.isdir(f"lightning_logs/{LOGS_NAME}"):
     latest_version = None
     num = 0
-    while os.path.isdir(f"lightning_logs/{logs_name}/version_{num}"):
-        latest_version = f"lightning_logs/{logs_name}/version_{num}"
+    while os.path.isdir(f"lightning_logs/{LOGS_NAME}/version_{num}"):
+        latest_version = f"lightning_logs/{LOGS_NAME}/version_{num}"
         num += 1
     if latest_version:
         chkpt = glob.glob(f"{latest_version}/checkpoints/*.ckpt")[0]
@@ -106,8 +124,9 @@ if on_cluster:
     torch.set_float32_matmul_precision('medium')
     progress_bar = False
 
-task = LightningTrainingTask(model,losses=losses,metrics=metrics,log_rmse=False,
+task = LightningTrainingTask(model,losses=losses,metrics=metrics,metric_typ="mae",
+                             logs_directory="lightning_logs",name=LOGS_NAME,
                              scheduler_args={'mode': 'min', 'factor': 0.8, 'patience': 10},
-                             optimizer_args={'lr': 0.001},
+                             optimizer_args={'lr': LR},
                             )
-task.fit(data,dev_run=dev_run,max_epochs=500,chkpt=chkpt,name=logs_name,progress_bar=progress_bar)
+task.fit(data,dev_run=dev_run,max_steps=MAX_STEPS,chkpt=chkpt,progress_bar=progress_bar)
