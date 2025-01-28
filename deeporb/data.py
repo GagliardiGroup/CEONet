@@ -31,12 +31,19 @@ def from_h5key(h5key,h5fn,cutoff=None,avge0=0,sigma=1):
                 ad[f"orbfloats_{l}"] = torch.from_numpy(np.array(data[f"orbfloats_{l}"]))
 
         #Labels
-        # occ = np.ones_like(els) * np.array(data["occ"])
-        # ad.occ_atom = torch.from_numpy(occ)
+        if "is_homo" in data.keys():
+            if np.array(data["is_homo"]):
+                l = 1
+            elif np.array(data["is_lumo"]):
+                l = 2
+            else:
+                l = 0
+            ad.hl_label = l
+        ad.occ = torch.Tensor((np.array(data["occ"])/2)).float() #float for BCE loss, go to 0/1
         ad.energy = torch.Tensor(np.array(data["energy"]))
         ad.energy_ssh = 1/sigma * (ad.energy - avge0)
-        if "charge" in data.keys():
-            ad.charge = torch.from_numpy(np.ones_like(els) * np.array(data["charge"])).int()
+        # if "charge" in data.keys():
+        #     ad.charge = torch.from_numpy(np.ones_like(els) * np.array(data["charge"])).int()
         
         return ad
 

@@ -16,6 +16,14 @@ def compute_loss_metrics(metric: str, y_true: torch.Tensor, y_pred: torch.Tensor
         return torch.sqrt(torch.mean((y_true - y_pred) ** 2))
     elif metric == 'r2':
         return 1 - torch.sum((y_true - y_pred) ** 2) / torch.sum((y_true - torch.mean(y_true)) ** 2)
+    #input the logits for below:
+    elif metric == 'binary_acc':
+        # yp = torch.nn.functional.sigmoid(y_pred).round()
+        yp = (1 + (y_pred).sign())//2
+        return 1/len(yp)*(yp == y_true).sum()
+    elif metric == 'cross_acc':
+        yp = y_pred.argmax(axis=1)
+        return 1/len(yp)*(yp == y_true).sum()
     else:
         raise ValueError('Metric not implemented')
 
@@ -30,7 +38,7 @@ class Metrics(nn.Module):
         predict_name: Optional[str] = None,
         output_index: Optional[int] = None, # used for multi-task learning
         name: Optional[str] = None,
-        metric_keys: List[str] = ["mae", "rmse"],
+        metric_keys: List[str] = ["mae"],
         per_atom: bool = False,
         avge0 = 0,
         sigma = 1,

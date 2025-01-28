@@ -45,7 +45,7 @@ def extract_modct(mol,mos):
     return all_dct
 
 class OrbExtract():
-    def __init__(self, fn=None, rotate=False, cart=True,
+    def __init__(self, fn=None, rotate=False, cart=True, label_hl=True,
                  mol=None, mo_ene=None, mo_coeff=None, mo_occ=None,
                 ):
         if mol is None: #else fn is none
@@ -64,7 +64,16 @@ class OrbExtract():
         self.xyz = np.vstack([atm[1] for atm in mol._atom])
         self.mo_ene = mo_ene
         self.mo_occ = mo_occ
-        # self.name = fn.split("/")[-1].split(".")[0]
+
+        self.label_hl = label_hl
+        if self.label_hl:
+            occ_mos = np.where(mo_occ == 2)[0]
+            virt_mos = np.where(mo_occ == 0)[0]
+            homo_ene = np.max(mo_ene[occ_mos])
+            lumo_ene = np.min(mo_ene[virt_mos])
+            self.is_homo = (np.abs(mo_ene - homo_ene) < 1e-4) * (mo_occ == 2)
+            self.is_lumo = (np.abs(mo_ene - lumo_ene) < 1e-4) * (mo_occ == 0)
+        
         self.nmos = mo_coeff.shape[1]
         self.rotate = rotate
         self.dct = extract_modct(mol,mo_coeff)
@@ -121,9 +130,11 @@ class OrbExtract():
             "positions":xyz.astype("float32"),
             "energy":self.mo_ene[[mo_num]].astype("float32"),
             "occ":self.mo_occ[[mo_num]].astype("uint8"),
-            #not uint, charge can be negative!
             "charge":np.array([self.charge]).astype("int8"),
         }
+        if self.label_hl:
+            dct["is_homo"] = np.array(self.is_homo[mo_num])
+            dct["is_lumo"] = np.array(self.is_lumo[mo_num])
         
         c = mos[:,mo_num]
         dct["c"] = c.astype("float32")
