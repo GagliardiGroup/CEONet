@@ -16,6 +16,7 @@ def from_h5key(h5key,h5fn,cutoff=None,avge0=0,sigma=1):
         #Make atoms object
         els = np.array(data["atomic_numbers"])
         pos = np.array(data["positions"])
+        print(pos)
         atoms = ase.Atoms(numbers=els,positions=pos)
         ad = AtomicData.from_atoms(atoms,cutoff=cutoff) #makes graph structure
 
@@ -39,9 +40,13 @@ def from_h5key(h5key,h5fn,cutoff=None,avge0=0,sigma=1):
             else:
                 l = 0
             ad.hl_label = l
-        ad.occ = torch.Tensor((np.array(data["occ"])/2)).float() #float for BCE loss, go to 0/1
-        ad.energy = torch.Tensor(np.array(data["energy"]))
-        ad.energy_ssh = 1/sigma * (ad.energy - avge0)
+        if "labels" in data.keys():
+            ad.label = torch.Tensor(data["labels"][()]).to(torch.int64)
+        if "occ" in data.keys():
+            ad.occ = torch.Tensor((np.array(data["occ"])/2)).float() #float for BCE loss, go to 0/1
+        if "energy" in data.keys():
+            ad.energy = torch.Tensor(np.array(data["energy"]))
+            ad.energy_ssh = 1/sigma * (ad.energy - avge0)
         # if "charge" in data.keys():
         #     ad.charge = torch.from_numpy(np.ones_like(els) * np.array(data["charge"])).int()
         

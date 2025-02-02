@@ -46,7 +46,7 @@ def extract_modct(mol,mos):
 
 class OrbExtract():
     def __init__(self, fn=None, rotate=False, cart=True, label_hl=True,
-                 mol=None, mo_ene=None, mo_coeff=None, mo_occ=None,
+                 mol=None, mo_ene=None, mo_coeff=None, mo_occ=None, labels=None,
                 ):
         if mol is None: #else fn is none
             mol, mo_ene, mo_coeff, mo_occ, _, _ = molden.load(fn)
@@ -58,12 +58,13 @@ class OrbExtract():
             mo_coeff = scf.addons.project_mo_nr2nr(mol,mo_coeff,mol2)
             mol = mol2
 
-        #Assign values in Bohr
+        #Assign values IN BOHR
         self.mol = mol
         self.els = mol._atm[:,0]
         self.xyz = np.vstack([atm[1] for atm in mol._atom])
         self.mo_ene = mo_ene
         self.mo_occ = mo_occ
+        self.labels = labels
 
         self.label_hl = label_hl
         if self.label_hl:
@@ -78,7 +79,10 @@ class OrbExtract():
         self.rotate = rotate
         self.dct = extract_modct(mol,mo_coeff)
         self.mo_coeff = mo_coeff
-        self.charge = int(mol.nelectron - sum(mo_occ))
+        if mo_occ:
+            self.charge = int(mol.nelectron - sum(mo_occ))
+        else:
+            self.charge = None
         
         if rotate:
             self.orb_dct = assign_mos(self.dct,mo_coeff)
@@ -128,10 +132,15 @@ class OrbExtract():
         dct = {
             "atomic_numbers":self.els.astype("uint8"),
             "positions":xyz.astype("float32"),
-            "energy":self.mo_ene[[mo_num]].astype("float32"),
-            "occ":self.mo_occ[[mo_num]].astype("uint8"),
-            "charge":np.array([self.charge]).astype("int8"),
         }
+        if self.mo_ene is not None:
+            dct["energy"] = self.mo_ene[[mo_num]].astype("float32")
+        if self.mo_occ is not None:
+            dct["occ"] = self.mo_occ[[mo_num]].astype("uint8"),
+        if self.labels is not None:
+            dct["labels"] = self.labels[[mo_num]]
+        if self.charge is not None:
+            dct["charge"] = np.array([self.charge]).astype("int8"),
         if self.label_hl:
             dct["is_homo"] = np.array(self.is_homo[mo_num])
             dct["is_lumo"] = np.array(self.is_lumo[mo_num])
