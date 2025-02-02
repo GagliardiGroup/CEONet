@@ -16,7 +16,6 @@ def from_h5key(h5key,h5fn,cutoff=None,avge0=0,sigma=1):
         #Make atoms object
         els = np.array(data["atomic_numbers"])
         pos = np.array(data["positions"])
-        print(pos)
         atoms = ase.Atoms(numbers=els,positions=pos)
         ad = AtomicData.from_atoms(atoms,cutoff=cutoff) #makes graph structure
 
