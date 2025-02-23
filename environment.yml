@@ -1,0 +1,36 @@
+name: deeporb 
+channels:
+  - defaults
+  - conda-forge
+  - pytorch
+dependencies:
+  - python==3.12
+  - pip
+  - pip:
+  
+     - kaleido
+     - dask-mpi
+     - rasterio
+     - h5py
+     - ase<=3.22.1
+     - torch
+     - seaborn
+     - plotly
+     - jupyterlab
+     - folium
+     - pytest
+     - pytest-cov
+     - tox
+     - pre_commit
+     - nbdime
+     - nbstripout
+     - sphinx
+     - recommonmark
+     - numpy<2
+     - scipy
+     - pandas
+     - tqdm
+     - ipython
+     - matplotlib
+     - ipympl  
+     - memray

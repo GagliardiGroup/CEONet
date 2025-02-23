@@ -46,7 +46,7 @@ def extract_modct(mol,mos):
 
 class OrbExtract():
     def __init__(self, fn=None, rotate=False, cart=True, label_hl=True,
-                 mol=None, mo_ene=None, mo_coeff=None, mo_occ=None, labels=None,
+                 mol=None, mo_ene=None, mo_coeff=None, mo_occ=None, labels=None
                 ):
         if mol is None: #else fn is none
             mol, mo_ene, mo_coeff, mo_occ, _, _ = molden.load(fn)
@@ -58,7 +58,7 @@ class OrbExtract():
             mo_coeff = scf.addons.project_mo_nr2nr(mol,mo_coeff,mol2)
             mol = mol2
 
-        #Assign values IN BOHR
+        #Assign values in Bohr
         self.mol = mol
         self.els = mol._atm[:,0]
         self.xyz = np.vstack([atm[1] for atm in mol._atom])
@@ -83,7 +83,7 @@ class OrbExtract():
             self.charge = int(mol.nelectron - sum(mo_occ))
         else:
             self.charge = None
-        
+
         if rotate:
             self.orb_dct = assign_mos(self.dct,mo_coeff)
             print("Recomputing rotated...")

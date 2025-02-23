@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import h5py
 import lightning as L
+from pathlib import Path
 
 #loader to import dicts:
 from cace.data.atomic_data import AtomicData
@@ -11,45 +12,47 @@ from cace.tools.torch_geometric import Dataset, DataLoader
 
 def from_h5key(h5key,h5fn,cutoff=None,avge0=0,sigma=1):
     with h5py.File(h5fn, "r") as f:
-        data = f[h5key]
+        data = dict(f[h5key])
+        return process_mo_dictionary(data, cutoff, avge0, sigma)
 
-        #Make atoms object
-        els = np.array(data["atomic_numbers"])
-        pos = np.array(data["positions"])
-        atoms = ase.Atoms(numbers=els,positions=pos)
-        ad = AtomicData.from_atoms(atoms,cutoff=cutoff) #makes graph structure
+def process_mo_dictionary(data:dict, cutoff, avge0, sigma):
+    #Make atoms object
+    els = np.array(data["atomic_numbers"])
+    pos = np.array(data["positions"])
+    atoms = ase.Atoms(numbers=els,positions=pos)
+    ad = AtomicData.from_atoms(atoms,cutoff=cutoff) #makes graph structure
 
-        #Orbdata
-        #lao x (dim + 3) , 3 = alpha w atom_num
-        #need to add pointer for orbdata lol
-        ad["c"] = torch.from_numpy(np.array(data["c"]))
-        ad["c_ptr"] = torch.tensor([ad["c"].shape[0]]).int()
-        for l in range(3):
-            if f"orbints_{l}" in data.keys():
-                ad[f"orbints_{l}"] = torch.from_numpy(np.array(data[f"orbints_{l}"])).int()
-                ad[f"orbdata_{l}_ptr"] = torch.tensor([ad[f"orbints_{l}"].shape[0]]).int()
-                ad[f"orbfloats_{l}"] = torch.from_numpy(np.array(data[f"orbfloats_{l}"]))
+    #Orbdata
+    #lao x (dim + 3) , 3 = alpha w atom_num
+    #need to add pointer for orbdata lol
+    ad["c"] = torch.from_numpy(np.array(data["c"]))
+    ad["c_ptr"] = torch.tensor([ad["c"].shape[0]]).int()
+    for l in range(3):
+        if f"orbints_{l}" in data.keys():
+            ad[f"orbints_{l}"] = torch.from_numpy(np.array(data[f"orbints_{l}"])).int()
+            ad[f"orbdata_{l}_ptr"] = torch.tensor([ad[f"orbints_{l}"].shape[0]]).int()
+            ad[f"orbfloats_{l}"] = torch.from_numpy(np.array(data[f"orbfloats_{l}"]))
 
-        #Labels
-        if "is_homo" in data.keys():
-            if np.array(data["is_homo"]):
-                l = 1
-            elif np.array(data["is_lumo"]):
-                l = 2
-            else:
-                l = 0
-            ad.hl_label = l
-        if "labels" in data.keys():
-            ad.label = torch.Tensor(data["labels"][()]).to(torch.int64)
-        if "occ" in data.keys():
-            ad.occ = torch.Tensor((np.array(data["occ"])/2)).float() #float for BCE loss, go to 0/1
-        if "energy" in data.keys():
-            ad.energy = torch.Tensor(np.array(data["energy"]))
-            ad.energy_ssh = 1/sigma * (ad.energy - avge0)
-        # if "charge" in data.keys():
-        #     ad.charge = torch.from_numpy(np.ones_like(els) * np.array(data["charge"])).int()
-        
-        return ad
+    #Labels
+    if "is_homo" in data.keys():
+        if np.array(data["is_homo"]):
+            l = 1
+        elif np.array(data["is_lumo"]):
+            l = 2
+        else:
+            l = 0
+        ad.hl_label = l
+    
+    if "labels" in data.keys():
+        ad.label = torch.Tensor(data["labels"][()]).to(torch.int64)
+    if "occ" in data.keys():
+        ad.occ = torch.Tensor((np.array(data["occ"])/2)).float() #float for BCE loss, go to 0/1
+    if "energy" in data.keys():
+        ad.energy = torch.Tensor(np.array(data["energy"]))
+        ad.energy_ssh = 1/sigma * (ad.energy - avge0)
+    # if "charge" in data.keys():
+    #     ad.charge = torch.from_numpy(np.ones_like(els) * np.array(data["charge"])).int()
+    return ad
 
 class OrbDataset(Dataset):
     def __init__(self,root="data/aodata.h5",cutoff=7.6, avge0=0, sigma=1,
@@ -83,19 +86,28 @@ class OrbInMemoryDataset(Dataset):
     
     def prepare_data(self):
         #Currently takes ~5min to load small dataset serially
-        with h5py.File(self.root, "r") as f:
-            data_len = len(f.keys())
-        if not self.inmem_parallel:
-            self.dataset = [self.get_h5(i) for i in range(data_len)]
+        p = Path(self.root)
+        if p.suffix == '.h5':
+            with h5py.File(self.root, "r") as f:
+                data_len = len(f.keys())
+            if not self.inmem_parallel:
+                self.dataset = [self.get_h5(i) for i in range(data_len)]
+            else:
+                #For some reason this breaks, maybe because of vm pool limit?
+                #Worth trying on cluster though
+                pool = torch.multiprocessing.Pool(processes=torch.multiprocessing.cpu_count())
+                self.dataset = pool.map(self.get_h5, range(data_len))
+        elif p.suffix == '.pt':
+            print("reading pt file")
+            if self.inmem_parallel:
+                raise Exception("Parallel reading of pytorch data is not supported")
+            self.dataset = [process_mo_dictionary(v, self.cutoff, self.avge0, self.sigma) for k,v in torch.load(p).items()]
         else:
-            #For some reason this breaks, maybe because of vm pool limit?
-            #Worth trying on cluster though
-            pool = torch.multiprocessing.Pool(processes=torch.multiprocessing.cpu_count())
-            self.dataset = pool.map(self.get_h5, range(data_len))
+            raise Exception("Unsupported filetype supplied for dataset")
 
     def len(self):
         return len(self.dataset)
-    
+
     def get(self, idx):
         return self.dataset[idx]
 
@@ -124,8 +136,10 @@ class OrbData(L.LightningDataModule):
     
     def prepare_data(self):
         if not self.in_memory:
+            print("Setting up dataset")
             dataset = OrbDataset(self.root,cutoff=self.cutoff,avge0=self.avge0,sigma=self.sigma)
         else:
+            print("Loading dataset into memory")
             dataset = OrbInMemoryDataset(self.root,cutoff=self.cutoff,avge0=self.avge0,
                                          sigma=self.sigma,inmem_parallel=self.inmem_parallel)
         torch.manual_seed(12345)
