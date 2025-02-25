@@ -9,7 +9,7 @@ dependencies:
   - pip:
      - -e .
      - tensorboard
-     - opt/cace
+     - -e opt/cace
      - lightning
      - kaleido
      - dask-mpi

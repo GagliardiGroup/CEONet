@@ -12,9 +12,9 @@ from cace.tasks import GetLoss
 from deeporb.metrics import Metrics
 
 #Write here
-LOGS_NAME = "sto3g_occ_100000"
+LOGS_NAME = "sto3g_occ_1000000"
 DATA_NAME = "sto3g_occ.pt"
-SUBSET_SIZE = "100000"
+SUBSET_SIZE = "1000000"
 
 #Model params
 CUTOFF = 7.6
@@ -59,17 +59,12 @@ def main():
 
     print(root)
 
-    #in_memory = True if on_cluster else False
-    #if on_cluster:
-    #    in_memory = IN_MEMORY
-    #if not in_memory:
-
     torch.multiprocessing.set_sharing_strategy('file_system')
     in_memory = True
 
     print("Making dataset...")
     time_start = time.perf_counter()
-    data = OrbData(root=root,batch_size=BATCH_SIZE,cutoff=CUTOFF,in_memory=in_memory,avge0=AVGE0,sigma=SIGMA)
+    data = OrbData(data_path=root,batch_size=BATCH_SIZE,cutoff=CUTOFF,avge0=AVGE0,sigma=SIGMA)
     #data = OrbData(root=root,batch_size=BATCH_SIZE,num_val=NUM_VAL,num_train=NUM_TRAIN,cutoff=CUTOFF,in_memory=in_memory,avge0=AVGE0,sigma=SIGMA)
     time_stop = time.perf_counter()
     print("Time elapsed:",time_stop-time_start)
@@ -109,12 +104,10 @@ def main():
             )
     metrics = [e_metric]
 
-    #Init lazy layers
-    for batch in data.train_dataloader():
-        exdatabatch = batch
-        break
-    model.cuda()
-    model(exdatabatch.cuda())
+    # init lazy layers
+    #first = data.get_example_batch()
+    #model.cuda()
+    #model(first.cuda())
 
     #Check for checkpoint and restart if found:
     chkpt = None
