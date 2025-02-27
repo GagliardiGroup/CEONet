@@ -12,9 +12,9 @@ from cace.tasks import GetLoss
 from deeporb.metrics import Metrics
 
 #Write here
-LOGS_NAME = "sto3g_occ_1000000"
+LOGS_NAME = "sto3g_occ_1000"
 DATA_NAME = "sto3g_occ.pt"
-SUBSET_SIZE = "1000000"
+SUBSET_SIZE = "1000"
 
 #Model params
 CUTOFF = 7.6
@@ -55,7 +55,7 @@ on_cluster = False
 #root = f"../data/{DATA_NAME.split('_')[0]}/{DATA_NAME}"
 def main():
 
-    root = f"/eagle/DeepOrb/{DATA_NAME.split('_')[0]}/subset/{DATA_NAME.split('.')[0]}_{SUBSET_SIZE}.pt"
+    root = f"/eagle/DeepOrb/data/datasets/{DATA_NAME.split('_')[0]}/subset/{DATA_NAME.split('.')[0]}_{SUBSET_SIZE}.pt"
 
     print(root)
 
