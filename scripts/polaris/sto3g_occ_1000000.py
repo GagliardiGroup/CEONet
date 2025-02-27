@@ -55,7 +55,7 @@ on_cluster = False
 #root = f"../data/{DATA_NAME.split('_')[0]}/{DATA_NAME}"
 def main():
 
-    root = f"/eagle/DeepOrb/data/datasets/{DATA_NAME.split('_')[0]}/subset/{DATA_NAME.split('.')[0]}_{SUBSET_SIZE}.pt"
+    root = f"/eagle/DeepOrb/shared/data/{DATA_NAME.split('_')[0]}/subset/{DATA_NAME.split('.')[0]}_{SUBSET_SIZE}.pt"
 
     print(root)
 
