@@ -43,7 +43,7 @@ module use /soft/modulefiles
 module load conda
 conda activate deeporb
 cd /eagle/DeepOrb/deeporb
-python scripts/polaris/sto3g_occ_1000000.pys
+python scripts/polaris/sto3g_occ_1000000.py
 ```
 
 *Interactive Job:*
