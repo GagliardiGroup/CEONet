@@ -174,6 +174,7 @@ class OrbData(L.LightningDataModule):
                  sigma=1
         ):
         super().__init__()
+        self.root = data_path
         self.data_path = data_path
         self.batch_size = batch_size
         self.train_split = train_split
@@ -189,7 +190,7 @@ class OrbData(L.LightningDataModule):
         self.test_dataset = None
 
 
-    def get_h5(self):
+    def get_h5(self,i):
         return from_h5key(f"o{i}",h5fn=self.data_path,cutoff=self.cutoff,avge0=self.avge0,sigma=self.sigma)
 
 
