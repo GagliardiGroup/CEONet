@@ -3,8 +3,11 @@
 
 ## Overview
 Thank you for your interest in this work!
+
 Source code for CEONet is avialable in src/deeporb, particularly src/deeporb/ceonet.py
+
 Training scripts are found in scripts/training_scripts
+
 Notebooks show example inference and figure generation, using the data in model_eval
 
 ## Installation
