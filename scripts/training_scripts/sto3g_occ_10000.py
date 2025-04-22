@@ -1,7 +1,5 @@
 import os
 import sys
-#sys.path.append('/lus/eagle/projects/DeepOrb/Ray/deeporb')
-#sys.path.append('/lus/eagle/projects/DeepOrb/Ray/deeporb/cace')
 import glob
 import torch
 import time
@@ -13,12 +11,10 @@ from deeporb.atomwise import AttentionAtomwise
 from cace.tasks import GetLoss
 from deeporb.metrics import Metrics
 
-#Write here
 LOGS_NAME = "sto3g_occ_10000"
 DATA_NAME = "sto3g_occ.h5"
 SUBSET_SIZE = "10000"
 
-#Model params
 CUTOFF = 7.6
 LINMAX = 1
 LOMAX = 2
@@ -30,33 +26,19 @@ STACKING = True
 IRREP_MIXING = False
 CHARGE_EMBEDDING = False
 
-#Data params
 BATCH_SIZE = 128
-#NUM_TRAIN = 5120
-#NUM_VAL = 10000
 IN_MEMORY = False
 AVGE0 = -0.6605
 SIGMA = 0.2801
 
-#Training params
-#Set DEV_RUN to true to test if a single val batch works, etc.
 DEV_RUN = False
 LR = 0.001
 MAX_STEPS = 600000
 
-#Note: you will need to adjust this section to path it to the correct .h5
 on_cluster = False
-#import os
-# if 'SLURM_JOB_CPUS_PER_NODE' in os.environ.keys():
-#     on_cluster = True
-# if on_cluster:
-#     root = f"/global/scratch/users/king1305/data/{DATA_NAME}"
-# else:
-#     root = f"../data/{DATA_NAME}"
 
 def main():
 
-    # root = f"/eagle/DeepOrb/{DATA_NAME.split('_')[0]}/subset/{DATA_NAME.split('.')[0]}_{SUBSET_SIZE}.pt"
     root = f"/eagle/DeepOrb/shared/data/{DATA_NAME.split('_')[0]}/subset/{DATA_NAME.split('.')[0]}_{SUBSET_SIZE}.pt"
     print(root)
 
@@ -66,7 +48,6 @@ def main():
     print("Making dataset...")
     time_start = time.perf_counter()
     data = OrbData(data_path=root,batch_size=BATCH_SIZE,cutoff=CUTOFF,avge0=AVGE0,sigma=SIGMA)
-    #data = OrbData(root=root,batch_size=BATCH_SIZE,num_val=NUM_VAL,num_train=NUM_TRAIN,cutoff=CUTOFF,in_memory=in_memory,avge0=AVGE0,sigma=SIGMA)
     time_stop = time.perf_counter()
     print("Time elapsed:",time_stop-time_start)
 
@@ -105,12 +86,7 @@ def main():
             )
     metrics = [e_metric]
 
-    # init lazy layers
-    #first = data.get_example_batch()
-    #model.cuda()
-    #model(first.cuda())
 
-    #Check for checkpoint and restart if found:
     chkpt = None
     dev_run = DEV_RUN
     if os.path.isdir(f"/eagle/DeepOrb/Ray/deeporb/scripts_to_run/lightning_logs/{LOGS_NAME}"):
@@ -129,17 +105,9 @@ def main():
         dev_run = False
 
     progress_bar = True
-    #if on_cluster:
-    #    torch.set_float32_matmul_precision('medium')
-    #    progress_bar = False
 
     torch.set_float32_matmul_precision('medium')
 
-    #task = LightningTrainingTask(model,losses=losses,metrics=metrics,metric_typ="mae",
-    #                             logs_directory="lightning_logs",name=LOGS_NAME,
-    #                             scheduler_args={'mode': 'min', 'factor': 0.8, 'patience': 10},
-    #                             optimizer_args={'lr': LR},
-    #                            )
 
     task = LightningTrainingTask(model,losses=losses,metrics=metrics,
                                  logs_directory="lightning_logs",name=LOGS_NAME,
