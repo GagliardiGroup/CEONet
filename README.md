@@ -1,6 +1,14 @@
-# DeepOrb
+# CEONet
+> Cartesian equivariant deep learning for molecular orbitals 
 
-> Deep learning for electronic orbitals
+## Overview
+Thank you for your interest in this work!
+
+Source code for CEONet is avialable in src/deeporb, particularly src/deeporb/ceonet.py
+
+Training scripts are found in scripts/training_scripts
+
+Notebooks show example inference and figure generation, using the data in model_eval
 
 ## Installation
 
@@ -52,9 +60,4 @@ python scripts/polaris/sto3g_occ_1000000.py
 ## Dependencies
 
 CACE (https://github.com/BingqingCheng/cace)
-In particular you will need to pull my fork of CACE to use lightning:
-https://github.com/dking072/cace
-
 ASE (https://wiki.fysik.dtu.dk/ase/install.html)
-
-test
