@@ -88,68 +88,6 @@ class OrbInMemoryDataset(Dataset):
     def get(self, idx):
         return self.dataset[idx]
 
-# class OrbData(L.LightningDataModule):
-#     def __init__(self, root="data/aodata.h5", cutoff=4.0, in_memory=False, inmem_parallel=False, drop_last=True,
-#                  batch_size=32, num_train=None, num_val=None, valid_p=0.1, test_p=0.1, avge0=0, sigma=1):
-#         super().__init__()
-#         self.batch_size = batch_size
-#         self.root = root
-#         self.valid_p = valid_p
-#         self.test_p = test_p
-#         self.cutoff = cutoff
-#         self.avge0 = avge0
-#         self.sigma = sigma
-#         self.in_memory = in_memory
-#         self.num_train = num_train
-#         self.num_val = num_val
-#         self.drop_last = drop_last
-#         self.inmem_parallel = inmem_parallel
-#         try:
-#             self.num_cpus = int(os.environ['SLURM_JOB_CPUS_PER_NODE'])
-#         except:
-#             self.num_cpus = os.cpu_count()
-#
-#         self.prepare_data()
-#
-#     def prepare_data(self):
-#         if not self.in_memory:
-#             print("Setting up dataset")
-#             dataset = OrbDataset(self.root,cutoff=self.cutoff,avge0=self.avge0,sigma=self.sigma)
-#         else:
-#             print("Loading dataset into memory")
-#             dataset = OrbInMemoryDataset(self.root,cutoff=self.cutoff,avge0=self.avge0,
-#                                          sigma=self.sigma,inmem_parallel=self.inmem_parallel)
-#         torch.manual_seed(12345)
-#         dataset = dataset.shuffle()
-#         cut1 = int(len(dataset)*(1-self.valid_p-self.test_p))
-#         cut2 = int(len(dataset)*(1-self.test_p))
-#         self.train = dataset[:cut1]
-#         if self.num_train:
-#             self.train = self.train[:self.num_train]
-#             assert(self.num_train == len(self.train))
-#         self.val = dataset[cut1:cut2]
-#         if self.num_val:
-#             self.val = self.val[:self.num_val]
-#             assert(self.num_val == len(self.val))
-#         self.test = dataset[cut2:]
-#
-#     def train_dataloader(self):
-#         train_loader = DataLoader(self.train, batch_size=self.batch_size, drop_last=self.drop_last,
-#                                   shuffle=True, num_workers = self.num_cpus)
-#         return train_loader
-#
-#     def val_dataloader(self):
-#         val_loader = DataLoader(self.val, batch_size=self.batch_size, drop_last=False,
-#                                 shuffle=False, num_workers = self.num_cpus)
-#         return val_loader
-#
-#     def test_dataloader(self):
-#         test_loader = DataLoader(self.test, batch_size=self.batch_size, drop_last=False,
-#                                 shuffle=False, num_workers = self.num_cpus)
-#         return test_loader
-#
-#
-
 class SimpleOrbDataset(Dataset):
     def __init__(self, data):
         self.data = data
@@ -171,7 +109,8 @@ class OrbData(L.LightningDataModule):
                  seed=42,
                  cutoff=4.0,
                  avge0=0,
-                 sigma=1
+                 sigma=1,
+                 verbose=False,
         ):
         super().__init__()
         self.root = data_path
@@ -184,44 +123,33 @@ class OrbData(L.LightningDataModule):
         self.cutoff = cutoff
         self.avge0 = avge0
         self.sigma = sigma
+        self.verbose = verbose
         self.data = None
         self.train_dataset = None
         self.val_dataset = None
         self.test_dataset = None
 
+    def print(self,str):
+        if self.verbose:
+            print(str)
 
     def get_h5(self,i):
         return from_h5key(f"o{i}",h5fn=self.data_path,cutoff=self.cutoff,avge0=self.avge0,sigma=self.sigma)
 
-
-    #def prepare_data(self):
-    #    print("calling prepare data")
-    #    if not self.data:
-    #        p = Path(self.data_path)
-    #        if p.suffix == '.h5':
-    #            print("reading h5 file")
-    #            with h5py.File(self.root, "r") as f:
-    #                data_len = len(f.keys())
-    #                self.data = [self.get_h5(i) for i in range(data_len)]
-    #        elif p.suffix == '.pt':
-    #            print("reading pt file")
-    #            self.data = [process_mo_dictionary(v, self.cutoff, self.avge0, self.sigma) for k,v in torch.load(p).items()]
-    #            print(len(self.data))
-
     def setup(self, stage=None):
-        print("calling prepare data")
+        self.print("calling prepare data")
         if not self.data:
             p = Path(self.data_path)
             if p.suffix == '.h5':
-                print("reading h5 file")
+                self.print("reading h5 file")
                 with h5py.File(self.root, "r") as f:
                     data_len = len(f.keys())
                     self.data = [self.get_h5(i) for i in range(data_len)]
             elif p.suffix == '.pt':
-                print("reading pt file")
+                self.print("reading pt file")
                 self.data = [process_mo_dictionary(v, self.cutoff, self.avge0, self.sigma) for k,v in torch.load(p).items()]
                 print(len(self.data))
-        print("calling setup")
+        self.print("calling setup")
         torch.manual_seed(self.seed)
         np.random.seed(self.seed)
         total_len = len(self.data)
@@ -236,12 +164,11 @@ class OrbData(L.LightningDataModule):
         val_data = [self.data[i] for i in val_idx]
         test_data = [self.data[i] for i in test_idx]
 
-        print(len(self.data))
-        print(len(train_data))
+        self.print(len(self.data))
+        self.print(len(train_data))
         self.train_dataset = SimpleOrbDataset(train_data)
         self.val_dataset = SimpleOrbDataset(val_data)
         self.test_dataset = SimpleOrbDataset(test_data)
-
 
     def get_example_batch(self):
         if not self.data:
@@ -251,7 +178,6 @@ class OrbData(L.LightningDataModule):
             temp_loader = DataLoader(temp_dataset, batch_size=self.batch_size)
             example_batch = next(iter(temp_loader))
             return example_batch
-
 
     def train_dataloader(self):
         train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=15)

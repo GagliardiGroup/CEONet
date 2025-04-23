@@ -104,78 +104,6 @@ def default_net(mean_std,chkpt=None,nr=16,batch_size=1):
             representation=representation,
             output_modules=[atomwise,atomwise_label]
         )
-    elif "class_forb" in mean_std:
-        atomwise = AttentionAtomwise(
-                            output_key='pred_energy',
-                            n_hidden=[32,16],
-                            attention_hidden_nc=128,
-                            avge0=AVGE0,sigma=SIGMA,
-                            bias=True
-                           )
-        
-        atomwise_occ = AttentionAtomwise(
-                            output_key='pred_occ_logit',
-                            n_hidden=[32,16],
-                            attention_hidden_nc=128,
-                            bias=True
-                           )
-        
-        atomwise_forb = AttentionAtomwise(
-                            output_key='pred_forb_logit',
-                            n_hidden=[32,16],
-                            n_out=3,
-                            attention_hidden_nc=128,
-                            bias=True
-                           ).cuda()
-        
-        model = NeuralNetworkPotential(
-            input_modules=None,
-            representation=representation,
-            output_modules=[atomwise,atomwise_occ,atomwise_forb]
-        )
-    elif "balanced" in mean_std:
-        atomwise = AttentionAtomwise(
-                            output_key='pred_energy',
-                            n_hidden=[32,16],
-                            attention_hidden_nc=128,
-                            avge0=AVGE0,sigma=SIGMA,
-                            bias=True
-                           )
-        
-        atomwise_label = AttentionAtomwise(
-                            output_key='pred_label_logit',
-                            n_hidden=[32,16],
-                            n_out=4,
-                            attention_hidden_nc=128,
-                            bias=True
-                           ).cuda()
-        
-        model = NeuralNetworkPotential(
-            input_modules=None,
-            representation=representation,
-            output_modules=[atomwise,atomwise_label]
-        )
-    elif "class_occ" in mean_std:
-        atomwise = AttentionAtomwise(
-                            output_key='pred_energy',
-                            n_hidden=[32,16],
-                            attention_hidden_nc=128,
-                            avge0=AVGE0,sigma=SIGMA,
-                            bias=True
-                           )
-        
-        atomwise_occ = AttentionAtomwise(
-                            output_key='pred_occ_logit',
-                            n_hidden=[32,16],
-                            attention_hidden_nc=128,
-                            bias=True
-                           )
-        
-        model = NeuralNetworkPotential(
-            input_modules=None,
-            representation=representation,
-            output_modules=[atomwise,atomwise_occ]
-        )
     else:
         atomwise = AttentionAtomwise(
                             output_key='pred_energy',
@@ -194,19 +122,9 @@ def default_net(mean_std,chkpt=None,nr=16,batch_size=1):
     if not chkpt:
         return model
     else:
-        # Run through example batch
-        data_name = data_dct[mean_std]
-        data = default_data(f"data/{data_name}",mean_std=mean_std,batch_size=batch_size)
-        # model.eval().cuda()
-        # with torch.no_grad():
-        #     for batch in data.val_dataloader():
-        #         model(batch.cuda())
-        #         break
-
-        #Load model and return
         state_dct = torch.load(chkpt,weights_only=True)
         model.load_state_dict(state_dct)
-        return model, data
+        return model
 
 def default_net_task(mean_std,chkpt=None,nr=16,batch_size=128):
     AVGE0, SIGMA = mean_std_dct[mean_std]
@@ -240,30 +158,23 @@ def default_net_task(mean_std,chkpt=None,nr=16,batch_size=128):
                                 )
 
     data_name = data_dct[mean_std]
-    data = default_data(f"data/{data_name}",mean_std=mean_std,batch_size=batch_size)
-
-    #Run through example batch
-    # task.model.eval().cuda()
-    # with torch.no_grad():
-    #     for batch in data.val_dataloader():
-    #         task.model(batch.cuda())
-    #         break
     
     if chkpt:
         task.load(chkpt)
-    return task, data
+    return task
 
-def default_data(h5fn,mean_std="qh9_5000_occ",in_memory=False,batch_size=128):
-    num_train = 51200
-    num_val = 5000
-    if "tm_all" in mean_std:
-        if batch_size == 128:
-            batch_size = 32
-    if "kl_constructed" in mean_std:
-        if batch_size == 128:
-            batch_size = 32
-        num_train = None
-        num_val = None
-    avge0, sigma = mean_std_dct[mean_std]
-    data = OrbData(root=h5fn,batch_size=batch_size,num_val=num_val,num_train=num_train,cutoff=7.6,in_memory=in_memory,avge0=avge0,sigma=sigma)
-    return data
+# def default_data(h5fn,mean_std="qh9_5000_occ",in_memory=False,batch_size=128):
+#     num_train = 51200
+#     num_val = 5000
+#     if "tm_all" in mean_std:
+#         if batch_size == 128:
+#             batch_size = 32
+#     if "kl_constructed" in mean_std:
+#         if batch_size == 128:
+#             batch_size = 32
+#         num_train = None
+#         num_val = None
+#     avge0, sigma = mean_std_dct[mean_std]
+#     data = OrbData(h5fn,batch_size=batch_size,num_val=num_val,num_train=num_train,cutoff=7.6,in_memory=in_memory,avge0=avge0,sigma=sigma)
+#     data.setup()
+#     return data
