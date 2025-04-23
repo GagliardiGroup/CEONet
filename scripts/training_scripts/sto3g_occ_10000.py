@@ -11,9 +11,9 @@ from deeporb.atomwise import AttentionAtomwise
 from cace.tasks import GetLoss
 from deeporb.metrics import Metrics
 
-LOGS_NAME = "sto3g_occ_1000000"
+LOGS_NAME = "sto3g_occ_10000"
 DATA_NAME = "sto3g_occ.h5"
-SUBSET_SIZE = "1000000"
+SUBSET_SIZE = "10000"
 
 CUTOFF = 7.6
 LINMAX = 1
@@ -33,7 +33,7 @@ SIGMA = 0.2801
 
 DEV_RUN = False
 LR = 0.001
-MAX_STEPS = 1000000
+MAX_STEPS = 600000
 
 on_cluster = False
 

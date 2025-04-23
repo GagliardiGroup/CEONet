@@ -11,15 +11,15 @@ from deeporb.atomwise import AttentionAtomwise
 from cace.tasks import GetLoss
 from deeporb.metrics import Metrics
 
-LOGS_NAME = "sto3g_occ_1000000"
-DATA_NAME = "sto3g_occ.h5"
+LOGS_NAME = "tm_occ_1000000"
+DATA_NAME = "tm_occ.h5"
 SUBSET_SIZE = "1000000"
 
 CUTOFF = 7.6
-LINMAX = 1
+LINMAX = 2
 LOMAX = 2
 NC = 16
-LAYERS = 2
+LAYERS = 1
 N_RBF = 16
 N_RSAMPLES = 16
 STACKING = True
@@ -28,12 +28,12 @@ CHARGE_EMBEDDING = False
 
 BATCH_SIZE = 128
 IN_MEMORY = False
-AVGE0 = -0.6605
-SIGMA = 0.2801
+AVGE0 = -0.6154
+SIGMA = 0.2862
 
 DEV_RUN = False
 LR = 0.001
-MAX_STEPS = 1000000
+MAX_STEPS = 1200000
 
 on_cluster = False
 
