@@ -25,7 +25,7 @@ def process_mo_dictionary(data:dict, cutoff, avge0, sigma):
     #need to add pointer for orbdata lol
     ad["c"] = torch.from_numpy(np.array(data["c"]))
     ad["c_ptr"] = torch.tensor([ad["c"].shape[0]]).int()
-    for l in range(3):
+    for l in range(5):
         if f"orbints_{l}" in data.keys():
             ad[f"orbints_{l}"] = torch.from_numpy(np.array(data[f"orbints_{l}"])).int()
             ad[f"orbdata_{l}_ptr"] = torch.tensor([ad[f"orbints_{l}"].shape[0]]).int()
@@ -180,15 +180,13 @@ class OrbData(L.LightningDataModule):
             return example_batch
 
     def train_dataloader(self):
-        train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=15)
+        train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=1)
         return train_loader
 
-
     def val_dataloader(self):
-        val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=15)
+        val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=1)
         return val_loader
 
-
     def test_dataloader(self):
-        test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=15)
+        test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=1)
         return test_loader
