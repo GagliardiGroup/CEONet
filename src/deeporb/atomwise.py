@@ -23,6 +23,7 @@ class AttentionAtomwise(nn.Module):
         output_key = "pred_energy",
         avge0 = 0,
         sigma = 1,
+        out_layer = nn.Identity(),
     ):
         super().__init__()
         self.output_key = output_key
@@ -37,7 +38,7 @@ class AttentionAtomwise(nn.Module):
         self.weight_net = nn.Sequential(
             nn.LazyLinear(attention_hidden_nc,bias=bias),nn.SiLU(),
             nn.LazyLinear(attention_hidden_nc,bias=bias),nn.SiLU(),
-            nn.LazyLinear(attention_hidden_nc,bias=bias)
+            nn.LazyLinear(attention_hidden_nc,bias=bias),out_layer,
         )
         self.energy_net = build_mlp(self.n_hidden,bias=bias,n_out=n_out)
 

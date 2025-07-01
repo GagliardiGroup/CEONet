@@ -193,8 +193,7 @@ class OrbData(L.LightningDataModule):
     def get_h5(self,i):
         return from_h5key(f"o{i}",h5fn=self.data_path,cutoff=self.cutoff,avge0=self.avge0,sigma=self.sigma)
 
-
-    #def prepare_data(self):
+    # def prepare_data(self):
     #    print("calling prepare data")
     #    if not self.data:
     #        p = Path(self.data_path)
