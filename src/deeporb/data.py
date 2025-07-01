@@ -1,4 +1,4 @@
-iimport ase
+import ase
 import os
 import numpy as np
 import torch
@@ -48,8 +48,8 @@ def process_mo_dictionary(data:dict, cutoff, avge0, sigma):
     if "energy" in data.keys():
         ad.energy = torch.Tensor(np.array(data["energy"]))
         ad.energy_ssh = 1/sigma * (ad.energy - avge0)
-    # if "charge" in data.keys():
-    #     ad.charge = torch.from_numpy(np.ones_like(els) * np.array(data["charge"])).int()
+    if "entropy" in data.keys():
+        ad.entropy = torch.Tensor(np.array(data["entropy"]))
     return ad
 
 class OrbDataset(Dataset):

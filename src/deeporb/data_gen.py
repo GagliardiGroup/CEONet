@@ -5,6 +5,15 @@ from pyscf.tools import molden
 import numpy as np
 
 def extract_modct(mol,mos):
+    """
+    Returns
+    -------
+    all_dct : dict
+        Keys are angular momentum l (0 for s, 1 for p, etc.)
+        Values are arrays of shape (n_prim_contr, 2 + n_cart + 1), where each row is:
+        [exponent, coeff, ao_idx_1, ..., ao_idx_N, atom_idx]
+    """
+    
     #Cartesian sizes:
     aotyp_dct = {0:"s",1:"p",2:"d",3:"f",4:"g"}
     size_dct = {0:1,1:3,2:6,3:10,4:15}
@@ -19,29 +28,39 @@ def extract_modct(mol,mos):
         if len(l_idx) == 0:
             continue
         
-        #alpha w
-        bas = [v for v in bas_info if v[0] == l] #lao x np x 2
-        bas = [np.vstack(v[1:]) for v in bas] #lao x np x 2
-        orb_floats = np.vstack(bas) #(lao x np) x 2
-        #Some bases have shared weights w/ different alpha, not implemented
-        #Should throw an error when stacking above though
+        #Flatten primitives to [alpha,w] / [exp, coeff]
+        bas = [v for v in bas_info if v[0] == l] # list of shells with angular momentum l
+        orb_floats = []
+        for shell in bas:
+            primitives = shell[1:]  # list of [exp, coeff1, coeff2, ...]
+            for p in primitives:
+                exp = p[0]
+                coeffs = p[1:]
+                for c in coeffs:
+                    orb_floats.append([exp, c])
+        orb_floats = np.array(orb_floats)
         assert(orb_floats.shape[1] == 2)
-
-        #i a
-        nums = mol._bas[:,0][np.where(mol._bas[:,1] == l)[0]] #lao
-        c = np.array(l_idx).reshape(-1,size_dct[l]) #lao x dim
+ 
+        #Include atomic number and basis number for each
+        atom_indices = mol._bas[:,0][np.where(mol._bas[:,1] == l)[0]] #lao, atom_indices/shell (i.e. atom number 5)
+        ao_nums = np.array(l_idx).reshape(-1,size_dct[l]) #lao x dim, ao numbers/shell
         orb_ints = []
-        for i,b in enumerate(bas): #lao times
-            c2 = np.stack([c[i]] * b.shape[0],axis=0) #np x dim
-            n2 = np.stack([nums[i]] * b.shape[0],axis=0)[:,None] #np x 1            
-            orb_ints.append(np.hstack([c2,n2]))
+        for shell, c2, n2 in zip(bas,ao_nums,atom_indices):
+            primitives = shell[1:]  # [[exp, coeff1, coeff2, ...], ...]
+            for p in primitives:
+                coeffs = p[1:]
+                for _ in coeffs:
+                    orb_ints.append(np.hstack([c2, n2]))  # 1 x (dim+1)
+
         orb_ints = np.vstack(orb_ints) #--> (lao x np) x (dim+1)
         out = np.concatenate([orb_floats,orb_ints],axis=-1) #(lao x np) x (2+dim+1)
         all_dct[l] = out
-
+        
         #Example for d orbital:
-        #alpha w 13 14 15 16 17 18 N
-    
+        #exp coeff 13 14 15 16 17 18 N
+        #13-18 are the atomic orbital numbers
+        #N is the atom the AOs belong to
+
     return all_dct
 
 class OrbExtract():
