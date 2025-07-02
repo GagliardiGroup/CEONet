@@ -128,8 +128,6 @@ class OrbData(L.LightningDataModule):
         self.train_dataset = None
         self.val_dataset = None
         self.test_dataset = None
-        # self.ncpu = os.cpu_count()
-        self.ncpu = 1
 
     def print(self,str):
         if self.verbose:
@@ -182,13 +180,13 @@ class OrbData(L.LightningDataModule):
             return example_batch
 
     def train_dataloader(self):
-        train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.ncpu)
+        train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=1)
         return train_loader
 
     def val_dataloader(self):
-        val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.ncpu)
+        val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=1)
         return val_loader
 
     def test_dataloader(self):
-        test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=self.ncpu)
+        test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=1)
         return test_loader

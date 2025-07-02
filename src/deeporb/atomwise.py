@@ -5,12 +5,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from cace.tools import scatter_sum
 
-def build_mlp(layers,bias=False,n_out=1,out_layer=nn.Identity()):
+def build_mlp(layers,bias=False,n_out=1):
     mlp = []
     for l in layers:
         mlp += [nn.LazyLinear(l,bias=bias),nn.SiLU()]
     mlp += [nn.LazyLinear(n_out,bias=False)]
-    mlp += [out_layer]
     return nn.Sequential(*mlp)
     
 class AttentionAtomwise(nn.Module):
@@ -39,9 +38,9 @@ class AttentionAtomwise(nn.Module):
         self.weight_net = nn.Sequential(
             nn.LazyLinear(attention_hidden_nc,bias=bias),nn.SiLU(),
             nn.LazyLinear(attention_hidden_nc,bias=bias),nn.SiLU(),
-            nn.LazyLinear(attention_hidden_nc,bias=bias),
+            nn.LazyLinear(attention_hidden_nc,bias=bias),out_layer,
         )
-        self.energy_net = build_mlp(self.n_hidden,bias=bias,n_out=n_out,out_layer=out_layer)
+        self.energy_net = build_mlp(self.n_hidden,bias=bias,n_out=n_out)
 
     def forward(self, 
                 data: Dict[str, torch.Tensor], 
@@ -65,6 +64,12 @@ class AttentionAtomwise(nn.Module):
         #Molecular representation
         X = self.weight_net(features)
         X = scatter_sum(src=X,index=data["batch"],dim=0)
+        # if "molecular_rep" in self.model_outputs:
+        #     data["molecular_rep"] = X
+        #     return data
+        
+        # predict energies for each orbital
+        # if "pred_energy" in self.model_outputs:
         y = self.energy_net(X).squeeze()
         if inference:
             y = (y*self.sigma) + self.avge0
