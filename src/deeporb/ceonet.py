@@ -338,17 +338,14 @@ class CEONet(L.LightningModule):
             alpha = data[f"orbfloats_{l}"][:,0]
             weight = data[f"orbfloats_{l}"][:,1]
     
-            #Sample primitive orbitals
-            norm = calc_norm(alpha,l)
+            #Sample primitive orbitals -- no normalization
             arg = alpha[:,None] * (-(self.rsamples[l]**2)[None,:]) #NP x rsamples
-            prim = norm[:,None,:] * torch.exp(arg)[:,:,None] # NP x rsamples x dim
-            prim = prim.movedim(1,-1)
-            prim = self.rsample_mixing_list[l](prim) 
-            prim = prim.movedim(-1,1) #NP x C x dim
+            prim = torch.exp(arg) #NP x rsamples
+            prim = self.rsample_mixing_list[l](prim) #NP x C
     
             #Multiply by coeffs and sum
-            orb = expand_to(weight,3,dim=-1) * prim #NP x C x dim
-            out = orb * c[:,None,:] # NP x C x dim
+            orb = weight[:,None] * prim #NP x C
+            out = orb[:,:,None] * c[:,None,:] # NP x C x dim
             summed_out = torch.zeros(natom,out.shape[1],out.shape[2],device=out.device)
             summed_out = torch.index_add(summed_out,0,atm_num,out)
             

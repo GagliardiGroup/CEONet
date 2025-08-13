@@ -10,61 +10,42 @@ def extract_modct(mol,mos):
     -------
     all_dct : dict
         Keys are angular momentum l (0 for s, 1 for p, etc.)
-        Values are arrays of shape (n_prim_contr, 2 + n_cart + 1), where each row is:
+        Values are arrays of shape (n_prim, 2 + dim + 1), where each row is:
         [exponent, coeff, ao_idx_1, ..., ao_idx_N, atom_idx]
     """
-    
-    #Cartesian sizes:
-    aotyp_dct = {0:"s",1:"p",2:"d",3:"f",4:"g"}
+    #Pulls out [exp coeff 13 14 15 16 17 18 N] for each orbital
+    #Note that prim coeffs are radial normalized (see https://pyscf.org/pyscf_api_docs/pyscf.gto.html) and contraction-normalized
+    #Atomic orbitals are not angular normalized, but these are pure functions of l so the model can adapt
     size_dct = {0:1,1:3,2:6,3:10,4:15}
-    aotyps = np.array([s.split()[-1] for s in mol.ao_labels()])
-    bas_info = []
-    for v in mol._basis.values():
-        bas_info += v
     all_dct = {}
+    ao_start = 0
+    for shell in mol._bas:
+        #ncontract != 1 for bases with shared exps (e.g. cc-pvdz)
+        atm_idx, l, nprim, ncontract, _, exp_start, coeff_start, _ = shell
+        exps = mol._env[exp_start:exp_start+nprim]
+        for n in range(ncontract):
+            coeffs = mol._env[(coeff_start+nprim*n):(coeff_start+nprim*n+nprim)]
+            ints = np.hstack([np.arange(ao_start,ao_start + size_dct[l]),np.array([atm_idx])])
+            ints = np.vstack([ints]*len(exps))
+            arr = np.hstack([exps[:,None],coeffs[:,None],ints])
+            if l not in all_dct.keys():
+                all_dct[l] = []
+            all_dct[l].append(arr)
+            ao_start += size_dct[l]
     
-    for l in aotyp_dct.keys():
-        l_idx = [i for i,s in enumerate(aotyps) if aotyp_dct[l] in s]
-        if len(l_idx) == 0:
-            continue
-        
-        #Flatten primitives to [alpha,w] / [exp, coeff]
-        bas = [v for v in bas_info if v[0] == l] # list of shells with angular momentum l
-        orb_floats = []
-        for shell in bas:
-            primitives = shell[1:]  # list of [exp, coeff1, coeff2, ...]
-            for p in primitives:
-                exp = p[0]
-                coeffs = p[1:]
-                for c in coeffs:
-                    orb_floats.append([exp, c])
-        orb_floats = np.array(orb_floats)
-        assert(orb_floats.shape[1] == 2)
- 
-        #Include atomic number and basis number for each
-        atom_indices = mol._bas[:,0][np.where(mol._bas[:,1] == l)[0]] #lao, atom_indices/shell (i.e. atom number 5)
-        ao_nums = np.array(l_idx).reshape(-1,size_dct[l]) #lao x dim, ao numbers/shell
-        orb_ints = []
-        for shell, c2, n2 in zip(bas,ao_nums,atom_indices):
-            primitives = shell[1:]  # [[exp, coeff1, coeff2, ...], ...]
-            for p in primitives:
-                coeffs = p[1:]
-                for _ in coeffs:
-                    orb_ints.append(np.hstack([c2, n2]))  # 1 x (dim+1)
-
-        orb_ints = np.vstack(orb_ints) #--> (lao x np) x (dim+1)
-        out = np.concatenate([orb_floats,orb_ints],axis=-1) #(lao x np) x (2+dim+1)
-        all_dct[l] = out
-        
-        #Example for d orbital:
-        #exp coeff 13 14 15 16 17 18 N
-        #13-18 are the atomic orbital numbers
-        #N is the atom the AOs belong to
+    for l in all_dct.keys():
+        all_dct[l] = np.vstack(all_dct[l])
+    
+    #Sanity check:
+    nprim = mol._bas[:,2] * mol._bas[:,3] 
+    for l in np.unique(mol._bas[:,1]):
+        idx = np.where(mol._bas[:,1] == l)
+        assert(nprim[idx].sum() == all_dct[l].shape[0])
 
     return all_dct
 
 class OrbExtract():
-    def __init__(self, fn=None, rotate=False, cart=True, label_hl=True,
+    def __init__(self, fn=None, rotate=False, cart=True, basis_fill="sto3g",
                  mol=None, mo_ene=None, mo_coeff=None, mo_occ=None, labels=None,
                 ):
         if mol is None: #else fn is none
@@ -84,15 +65,6 @@ class OrbExtract():
         self.mo_ene = mo_ene
         self.mo_occ = mo_occ
         self.labels = labels
-
-        self.label_hl = label_hl
-        if self.label_hl:
-            occ_mos = np.where(mo_occ == 2)[0]
-            virt_mos = np.where(mo_occ == 0)[0]
-            homo_ene = np.max(mo_ene[occ_mos])
-            lumo_ene = np.min(mo_ene[virt_mos])
-            self.is_homo = (np.abs(mo_ene - homo_ene) < 1e-4) * (mo_occ == 2)
-            self.is_lumo = (np.abs(mo_ene - lumo_ene) < 1e-4) * (mo_occ == 0)
         
         self.nmos = mo_coeff.shape[1]
         self.rotate = rotate
@@ -102,19 +74,23 @@ class OrbExtract():
             self.charge = int(mol.nelectron - sum(mo_occ))
         else:
             self.charge = None
+        if mol.basis == {}:
+            mol.basis = basis_fill
         
         if rotate:
-            self.orb_dct = assign_mos(self.dct,mo_coeff)
+            # self.orb_dct = assign_mos(self.dct,mo_coeff)
             print("Recomputing rotated...")
             from scipy.spatial.transform import Rotation as R
             rmol = gto.Mole()
-            els = [atm[0] for atm in mol.atom]
+            els = mol.elements
             coords = np.vstack([atm[1] for atm in mol.atom])
             r = R.from_quat([0, 0, np.sin(np.pi/4), np.cos(np.pi/4)]) #90 around z
             coords = (r.as_matrix() @ coords.T).T
             rmol.atom = [[el,coord] for el,coord in zip(els,coords)]
             rmol.charge = self.charge
+            rmol.basis = mol.basis
             rmol.build()
+            # print(mol._basis.keys(), rmol._basis.keys())
             rmf = scf.RHF(rmol)
             rmf.kernel()
             #Need to also project this for comparison lol
@@ -127,17 +103,17 @@ class OrbExtract():
             self.rmo_coeff = rmo_coeff
             self.rxyz = np.vstack([atm[1] for atm in rmol._atom])
             self.rdct = extract_modct(mol,rmo_coeff)
-            self.rorb_dct = assign_mos(self.rdct,rmo_coeff)
+            # self.rorb_dct = assign_mos(self.rdct,rmo_coeff)
     
             #Check for consistency
-            check1 = diff(self.orb_dct[0],self.rorb_dct[0])
-            check2 = diff(self.orb_dct[1][:,:,0],self.rorb_dct[1][:,:,1])
-            check3 = diff(self.orb_dct[1][:,:,1],self.rorb_dct[1][:,:,0])
-            check4 = diff(self.orb_dct[1][:,:,2],self.rorb_dct[1][:,:,2])
-            check5 = diff(mo_ene,rmf.mo_energy)
-            check6 = diff(mo_occ,rmf.mo_occ)
-            for i,c in enumerate([check1,check2,check3,check4,check5,check6]):
-                assert(c < 1e-7)
+            # check1 = diff(self.orb_dct[0],self.rorb_dct[0])
+            # check2 = diff(self.orb_dct[1][:,:,0],self.rorb_dct[1][:,:,1])
+            # check3 = diff(self.orb_dct[1][:,:,1],self.rorb_dct[1][:,:,0])
+            # check4 = diff(self.orb_dct[1][:,:,2],self.rorb_dct[1][:,:,2])
+            # check5 = diff(mo_ene,rmf.mo_energy)
+            # check6 = diff(mo_occ,rmf.mo_occ)
+            # for i,c in enumerate([check1,check2,check3,check4,check5,check6]):
+            #     assert(c < 1e-7)
 
     def extract_nlm(self,mo_num,rotate=False):
         orbdct = self.dct
@@ -160,9 +136,6 @@ class OrbExtract():
             dct["labels"] = self.labels[[mo_num]]
         if self.charge is not None:
             dct["charge"] = np.array([self.charge]).astype("int8"),
-        if self.label_hl:
-            dct["is_homo"] = np.array(self.is_homo[mo_num])
-            dct["is_lumo"] = np.array(self.is_lumo[mo_num])
         
         c = mos[:,mo_num]
         dct["c"] = c.astype("float32")

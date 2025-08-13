@@ -8,13 +8,13 @@ import h5py
 #Set NUM_MOLECULES to None to generate all data
 #Note we filter for chargeless and spinless in the glob
 
-NUM_MOLECULES = 1
-MOLDEN_DIR = "../../data/tmqm_moldens"
+NUM_MOLECULES = 5000
+MOLDEN_DIR = "../../../data/tmqm_moldens"
 names = glob.glob(f"{MOLDEN_DIR}/*_q0_s0_*.molden")
 if not NUM_MOLECULES:
     NUM_MOLECULES = len(names)
     
-fn = f"../data/tm_{NUM_MOLECULES}_occ.h5"
+fn = f"../../data/tm_{NUM_MOLECULES}_occ.h5"
 if os.path.isfile(fn):
     os.system(f"rm {fn}")
 

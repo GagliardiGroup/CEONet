@@ -8,13 +8,13 @@ import h5py
 #Make sure to remove the moldens in the failed_sanity_check.pkl
 #Set NUM_MOLECULES to None to generate all data
 
-NUM_MOLECULES = 1
-MOLDEN_DIR = "../../data/qm9_moldens"
+NUM_MOLECULES = 5000
+MOLDEN_DIR = "../../../data/qm9_moldens"
 names = glob.glob(f"{MOLDEN_DIR}/*.molden")
 if not NUM_MOLECULES:
     NUM_MOLECULES = len(names)
     
-fn = f"../data/sto3g_{NUM_MOLECULES}_occ.h5"
+fn = f"../../data/sto3g_{NUM_MOLECULES}_occ.h5"
 if os.path.isfile(fn):
     os.system(f"rm {fn}")
 

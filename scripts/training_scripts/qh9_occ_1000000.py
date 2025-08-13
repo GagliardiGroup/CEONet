@@ -33,7 +33,7 @@ SIGMA = 0.2229
 
 DEV_RUN = False
 LR = 0.001
-MAX_STEPS = 600000
+MAX_STEPS = 250000
 
 on_cluster = False
 

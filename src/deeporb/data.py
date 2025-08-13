@@ -139,35 +139,38 @@ class OrbData(L.LightningDataModule):
         return from_h5key(f"o{i}",h5fn=self.data_path,cutoff=self.cutoff,avge0=self.avge0,sigma=self.sigma)
 
     def setup(self, stage=None):
-        self.print("calling prepare data")
+        #Set indexes for train, val, test
+        with h5py.File(self.root, "r") as f:
+            data_len = len(f.keys())
+        torch.manual_seed(self.seed)
+        np.random.seed(self.seed)
+        indices = np.arange(data_len)
+        np.random.shuffle(indices)
+        if type(self.train_split) is float:
+            train_end = int(total_len * self.train_split)
+            val_end = train_end + int(total_len * self.val_split)
+            train_idx = indices[:train_end]
+            val_idx = indices[train_end:val_end]
+            test_idx = indices[val_end:]
+        elif type(self.train_split) is int:
+            #Grab val and test from end:
+            train_idx = indices[:self.train_split]
+            val_idx = indices[-(self.val_split + self.test_split):-self.test_split]
+            test_idx = indices[-self.test_split:]
+        
         if not self.data:
             p = Path(self.data_path)
             if p.suffix == '.h5':
-                self.print("reading h5 file")
                 with h5py.File(self.root, "r") as f:
-                    data_len = len(f.keys())
-                    self.data = [self.get_h5(i) for i in range(data_len)]
+                    train_data = [self.get_h5(i) for i in train_idx]
+                    val_data = [self.get_h5(i) for i in val_idx]
+                    test_data = [self.get_h5(i) for i in test_idx]
             elif p.suffix == '.pt':
-                self.print("reading pt file")
                 self.data = [process_mo_dictionary(v, self.cutoff, self.avge0, self.sigma) for k,v in torch.load(p).items()]
-                print(len(self.data))
-        self.print("calling setup")
-        torch.manual_seed(self.seed)
-        np.random.seed(self.seed)
-        total_len = len(self.data)
-        indices = np.arange(total_len)
-        np.random.shuffle(indices)
-        train_end = int(total_len * self.train_split)
-        val_end = train_end + int(total_len * self.val_split)
-        train_idx = indices[:train_end]
-        val_idx = indices[train_end:val_end]
-        test_idx = indices[val_end:]
-        train_data = [self.data[i] for i in train_idx]
-        val_data = [self.data[i] for i in val_idx]
-        test_data = [self.data[i] for i in test_idx]
+                train_data = [self.data[i] for i in train_idx]
+                val_data = [self.data[i] for i in val_idx]
+                test_data = [self.data[i] for i in test_idx]
 
-        self.print(len(self.data))
-        self.print(len(train_data))
         self.train_dataset = SimpleOrbDataset(train_data)
         self.val_dataset = SimpleOrbDataset(val_data)
         self.test_dataset = SimpleOrbDataset(test_data)

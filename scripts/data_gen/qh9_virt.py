@@ -10,12 +10,12 @@ import h5py
 #https://drive.google.com/drive/folders/1W2qb8Uu3CGwYMk1VX8vrHPVvA_cK8ARR
 #Set NUM_MOLECULES to None to generate all data
 
-NUM_MOLECULES = 1
-edata = QH9data(root="../datasets")
+NUM_MOLECULES = 5000
+edata = QH9data(root="../../../deeporb/datasets")
 if not NUM_MOLECULES:
     NUM_MOLECULES = len(edata.dataset)
     
-fn = f"../data/qh9_{NUM_MOLECULES}_virt.h5"
+fn = f"../../data/qh9_{NUM_MOLECULES}_virt.h5"
 if os.path.isfile(fn):
     os.system(f"rm {fn}")
 
