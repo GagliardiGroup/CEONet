@@ -147,8 +147,8 @@ class OrbData(L.LightningDataModule):
         indices = np.arange(data_len)
         np.random.shuffle(indices)
         if type(self.train_split) is float:
-            train_end = int(total_len * self.train_split)
-            val_end = train_end + int(total_len * self.val_split)
+            train_end = int(data_len * self.train_split)
+            val_end = train_end + int(data_len * self.val_split)
             train_idx = indices[:train_end]
             val_idx = indices[train_end:val_end]
             test_idx = indices[val_end:]
