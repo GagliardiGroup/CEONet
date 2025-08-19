@@ -8,18 +8,19 @@ import h5py
 #Set NUM_MOLECULES to None to generate all data
 #Note we filter for chargeless and spinless in the glob
 
-NUM_MOLECULES = 5000
+START = 5000
+STOP = 10000
 MOLDEN_DIR = "../../../data/tmqm_moldens"
 names = glob.glob(f"{MOLDEN_DIR}/*_q0_s0_*.molden")
-if not NUM_MOLECULES:
-    NUM_MOLECULES = len(names)
+# if not NUM_MOLECULES:
+#     NUM_MOLECULES = len(names)
     
-fn = f"../../data/tm_{NUM_MOLECULES}_occ.h5"
+fn = f"../../data/tm_{START}_{STOP}_occ.h5"
 if os.path.isfile(fn):
     os.system(f"rm {fn}")
 
 onum = 0
-for name in tqdm(names[:NUM_MOLECULES]):
+for name in tqdm(names[START:STOP]):
     obj = OrbExtract(name,rotate=False)
     mo_idx = np.where((obj.mo_occ == 2)*(obj.mo_ene > -1.75))[0]
     for i in mo_idx:
