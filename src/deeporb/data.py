@@ -152,12 +152,16 @@ class OrbData(L.LightningDataModule):
             train_idx = indices[:train_end]
             val_idx = indices[train_end:val_end]
             test_idx = indices[val_end:]
-        elif type(self.train_split) is int:
-            #Grab val and test from end:
+        elif (type(self.train_split) is int) and (type(self.val_split) is int) and (type(self.test_split) is int):
+            assert(self.train_split + self.val_split + self.test_split <= len(indices))
             train_idx = indices[:self.train_split]
-            val_idx = indices[-(self.val_split + self.test_split):-self.test_split]
-            test_idx = indices[-self.test_split:]
-        
+            if self.test_split == 0:
+                val_idx = indices[-(self.val_split + self.test_split):]
+                test_idx = []
+            else:
+                val_idx = indices[-(self.val_split + self.test_split):-self.test_split]
+                test_idx = indices[-self.test_split:]
+
         if not self.data:
             p = Path(self.data_path)
             if p.suffix == '.h5':

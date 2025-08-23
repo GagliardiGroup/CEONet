@@ -36,12 +36,18 @@ def extract_modct(mol,mos):
     for l in all_dct.keys():
         all_dct[l] = np.vstack(all_dct[l])
     
-    #Sanity check:
-    nprim = mol._bas[:,2] * mol._bas[:,3] 
+    #Sanity checks
+    #Asserts that we have expected number of primitives and all aos represented
+    #Can take out for very minor speedup
+    nprim = mol._bas[:,2] * mol._bas[:,3]
+    n_lst = []
     for l in np.unique(mol._bas[:,1]):
         idx = np.where(mol._bas[:,1] == l)
+        n_lst += [np.unique(all_dct[l][:,2:-1])]
         assert(nprim[idx].sum() == all_dct[l].shape[0])
-
+    n_lst = np.sort(np.hstack(n_lst))
+    assert(np.allclose(n_lst,np.arange(mol.nao)))
+    
     return all_dct
 
 class OrbExtract():
